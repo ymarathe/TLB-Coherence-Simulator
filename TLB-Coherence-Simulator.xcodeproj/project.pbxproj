@@ -12,6 +12,7 @@
 		D64DD83F1FD90F5300C3B9C0 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD83D1FD90F5300C3B9C0 /* utils.cpp */; };
 		D64DD8421FD915E800C3B9C0 /* ReplPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD8401FD915E800C3B9C0 /* ReplPolicy.cpp */; };
 		D64DD8471FD9454E00C3B9C0 /* CacheSys.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD8451FD9454E00C3B9C0 /* CacheSys.cpp */; };
+		D66815A51FE3309800DFF8CA /* Core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D66815A31FE3309800DFF8CA /* Core.cpp */; };
 		D69434ED1FDF3D7700DE361C /* Request.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D69434EB1FDF3D7700DE361C /* Request.cpp */; };
 /* End PBXBuildFile section */
 
@@ -39,6 +40,8 @@
 		D64DD8441FD91DF000C3B9C0 /* CacheLine.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CacheLine.h; sourceTree = "<group>"; };
 		D64DD8451FD9454E00C3B9C0 /* CacheSys.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = CacheSys.cpp; sourceTree = "<group>"; };
 		D64DD8461FD9454E00C3B9C0 /* CacheSys.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CacheSys.hpp; sourceTree = "<group>"; };
+		D66815A31FE3309800DFF8CA /* Core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Core.cpp; sourceTree = "<group>"; };
+		D66815A41FE3309800DFF8CA /* Core.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Core.hpp; sourceTree = "<group>"; };
 		D69434EB1FDF3D7700DE361C /* Request.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Request.cpp; sourceTree = "<group>"; };
 		D69434EC1FDF3D7700DE361C /* Request.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Request.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -76,6 +79,8 @@
 			children = (
 				D64DD8331FD90E3100C3B9C0 /* main.cpp */,
 				D64DD83A1FD90E5900C3B9C0 /* Cache.cpp */,
+				D66815A31FE3309800DFF8CA /* Core.cpp */,
+				D66815A41FE3309800DFF8CA /* Core.hpp */,
 				D64DD83B1FD90E5900C3B9C0 /* Cache.hpp */,
 				D69434EB1FDF3D7700DE361C /* Request.cpp */,
 				D69434EC1FDF3D7700DE361C /* Request.hpp */,
@@ -149,6 +154,7 @@
 				D64DD83F1FD90F5300C3B9C0 /* utils.cpp in Sources */,
 				D64DD83C1FD90E5900C3B9C0 /* Cache.cpp in Sources */,
 				D64DD8421FD915E800C3B9C0 /* ReplPolicy.cpp in Sources */,
+				D66815A51FE3309800DFF8CA /* Core.cpp in Sources */,
 				D69434ED1FDF3D7700DE361C /* Request.cpp in Sources */,
 				D64DD8341FD90E3100C3B9C0 /* main.cpp in Sources */,
 				D64DD8471FD9454E00C3B9C0 /* CacheSys.cpp in Sources */,

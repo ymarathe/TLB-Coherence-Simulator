@@ -18,10 +18,13 @@
 class Cache;
 
 enum {
-    L1_HIT_ID = 1,
-    L2_HIT_ID = 2,
-    L3_HIT_ID = 3,
-    MEMORY_HIT_ID = 4,
+    L1_HIT_ID,
+    L2_HIT_ID,
+    L3_HIT_ID,
+    NUM_MAX_CACHES,
+    MEMORY_ACCESS_ID,
+    CACHE_TO_CACHE_ID,
+    NUM_POPULATED_LATENCIES
 };
 
 class CacheSys {
@@ -30,18 +33,29 @@ public:
     std::vector<std::shared_ptr<Cache>> m_caches;
     
     //This is where requests wait until they are served
-    std::map<uint64_t, Request> m_wait_list;
+    std::map<uint64_t, std::unique_ptr<Request>> m_wait_list;
     
     uint64_t m_clk;
     
-    uint64_t latency_cycles[5] = {0, 4, 4 + 12, 4 + 12 + 31, 4 + 12 + 31 + 200};
+    uint64_t m_cache_latency_cycles[NUM_MAX_CACHES];
+    uint64_t m_total_latency_cycles[NUM_POPULATED_LATENCIES];
     
-    CacheSys() : m_clk(0) {}
-
-    CacheSys(std::vector<std::shared_ptr<Cache>>& caches) :
-        m_caches(caches),
-        m_clk(0)
+    uint64_t m_memory_latency;
+    uint64_t m_cache_to_cache_latency;
+    
+    CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
+    m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
     {
+         m_total_latency_cycles[MEMORY_ACCESS_ID] = m_memory_latency;
+    }
+
+    CacheSys(std::vector<std::shared_ptr<Cache>> &caches, uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50):
+        m_caches(caches),
+        m_clk(0),
+        m_memory_latency(memory_latency),
+        m_cache_to_cache_latency(cache_to_cache_latency)
+    {
+        m_total_latency_cycles[MEMORY_ACCESS_ID] = m_memory_latency;
         makeCachesSentient();
     }
     
@@ -57,6 +71,8 @@ public:
     {
         return m_caches.at(idx);
     }
+    
+    void printContents();
 };
 
 #endif /* CacheSys_hpp */

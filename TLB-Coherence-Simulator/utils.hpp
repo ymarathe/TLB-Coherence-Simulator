@@ -16,4 +16,12 @@
 
 unsigned int log2(unsigned int num);
 
+typedef enum {
+    REQUEST_HIT,
+    REQUEST_MISS,
+    REQUEST_RETRY,
+    MSHR_HIT,
+    MSHR_HIT_AND_LOCKED,
+} RequestStatus;
+
 #endif /* utils_hpp */

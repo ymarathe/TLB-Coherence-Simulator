@@ -27,15 +27,20 @@ uint64_t Cache::get_tag(const uint64_t addr)
     return ((addr >> m_num_line_offset_bits) >> m_num_index_bits);
 }
 
-bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, unsigned int &hit_pos)
+bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, unsigned int &hit_pos)
 {
     auto it = std::find_if(set.begin(), set.end(), [tag, this](const CacheLine &l)
-    {
-        return ((l.tag == tag) && (l.valid));
-    });
+                           {
+                               return ((l.tag == tag) && (l.valid));
+                           });
+    
     hit_pos = static_cast<unsigned int>(it - set.begin());
-    //return (it != set.end() && !it->lock);
     return (it != set.end());
+}
+
+bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, unsigned int &hit_pos)
+{
+    return is_found(set, tag, hit_pos) & !set[hit_pos].lock;
 }
 
 void Cache::invalidate(const uint64_t addr)
@@ -46,22 +51,24 @@ void Cache::invalidate(const uint64_t addr)
     std::vector<CacheLine>& set = m_tagStore[index];
     
     //If we find line in the cache, invalidate the line
+    //std::cout << "Back invalidate[Cache: " << m_cache_level << "]: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << addr <<  std::endl ;
     
-    //std::cout << "Saw back invalidate for addr: " << std::hex << addr << " in cache : " << m_cache_level << std::endl;
-    std::cout << "Back invalidate[Cache: " << m_cache_level << "]: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << addr <<  std::endl ;
-    
-    if(is_hit(set, tag, hit_pos))
+    if(is_found(set, tag, hit_pos))
     {
         set[hit_pos].valid = false;
     }
     
     //Go all the way up to highest cache
+    //There might be more than one higher cache (example L3)
     try
     {
-        auto higher_cache = m_higher_cache.lock();
-        if(higher_cache != nullptr)
+        for(int i = 0; i < m_higher_caches.size(); i++)
         {
-            higher_cache->invalidate(addr);
+            auto higher_cache = m_higher_caches[i].lock();
+            if(higher_cache != nullptr)
+            {
+                higher_cache->invalidate(addr);
+            }
         }
     }
     catch(std::bad_weak_ptr &e)
@@ -76,10 +83,13 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     uint64_t evict_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (set_num << m_num_line_offset_bits);
     try
     {
-        auto higher_cache = m_higher_cache.lock();
-        if(higher_cache != nullptr)
+        for(int i = 0; i < m_higher_caches.size(); i++)
         {
-            higher_cache->invalidate(evict_addr);
+            auto higher_cache = m_higher_caches[i].lock();
+            if(higher_cache != nullptr)
+            {
+                higher_cache->invalidate(evict_addr);
+            }
         }
     }
     catch(std::bad_weak_ptr &e)
@@ -106,7 +116,8 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
         //std::cout << m_cache_level << std::endl;
         if(lower_cache != nullptr)
         {
-            assert(lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK));
+            RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
+            assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
         }
     }
     else
@@ -117,12 +128,12 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             uint64_t index = lower_cache->get_index(evict_addr);
             uint64_t tag = lower_cache->get_index(evict_addr);
             std::vector<CacheLine> set = lower_cache->m_tagStore[index];
-            assert(lower_cache->is_hit(set, tag, hit_pos));
+            assert(lower_cache->is_found(set, tag, hit_pos));
         }
     }
 }
 
-bool Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
+RequestStatus Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
@@ -138,19 +149,17 @@ bool Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
         
         assert(!((txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ)) ^(line.is_translation));
         
-        //TODO: Do we update during writeback as well?
         //Update replacement state
         if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
         {
             m_repl->updateReplState(index, hit_pos);
         }
         
-        Request r = Request(addr, txn_kind, m_callback);
-        
-        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->latency_cycles[m_cache_level], r));
+        //std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
+        //m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->latency_cycles[m_cache_level], r));
         
         //std::cout << "Hit in " << index << ", " << hit_pos << ", in cache level " << m_cache_level << std::endl;
-        return true;
+        return REQUEST_HIT;
     }
     
     auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid; });
@@ -159,18 +168,52 @@ bool Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
   
     CacheLine &line = set[insert_pos];
     
-    //Evict the victim line and update replacement state
+    //Evict the victim line if not locked and update replacement state
     if(needs_eviction)
     {
         evict(index, line);
-        m_repl->updateReplState(index, insert_pos);
+        
+        //No need to update replacement state in case of no-eviction
+        //Order of insertion already set by LRU policy
+        //No need to update in case of writeback
+        if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
+        {
+            m_repl->updateReplState(index, insert_pos);
+        }
     }
     
-    line.valid = true;
-    line.lock = true;
-    line.tag = tag;
-    line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
-    line.dirty = (txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK);
+    auto mshr_iter = m_mshr_entries.find(addr);
+    if(mshr_iter != m_mshr_entries.end())
+    {
+        if((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK))
+        {
+            mshr_iter->second->dirty = true;
+        }
+        
+        if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
+        {
+            assert(mshr_iter->second->lock);
+            return MSHR_HIT_AND_LOCKED;
+        }
+        else
+        {
+            return MSHR_HIT;
+        }
+    }
+    else if(m_mshr_entries.size() < 16)
+    {
+        line.valid = true;
+        line.lock = true;
+        line.tag = tag;
+        line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
+        line.dirty = (txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK);
+        m_mshr_entries.insert(std::make_pair(addr, &line));
+    }
+    else
+    {
+        //MSHR full
+        return REQUEST_RETRY;
+    }
     
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
@@ -186,15 +229,12 @@ bool Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
     }
     else
     {
-        /*
-         std::cout << "I am in cache: " << m_cache_level << std::endl;
-         Request r = Request(addr, txn_kind, m_cache_sys->m_caches[m_cache_sys->m_caches.size() - 1]->m_callback);
-         std::cout << "clk: " << m_cache_sys->m_clk << std::endl;
-         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->latency_cycles[MEMORY_HIT_ID], r));
-        */
+        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
+        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
     
-    return false;
+    return REQUEST_MISS;
 }
 
 void Cache::add_lower_cache(const std::weak_ptr<Cache>& c)
@@ -204,7 +244,7 @@ void Cache::add_lower_cache(const std::weak_ptr<Cache>& c)
 
 void Cache::add_higher_cache(const std::weak_ptr<Cache>& c)
 {
-    m_higher_cache = c;
+    m_higher_caches.push_back(c);
 }
 
 void Cache::set_level(unsigned int level)
@@ -234,37 +274,41 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
     m_cache_sys = cache_sys;
 }
 
-void Cache::release_lock(Request &r)
+void Cache::release_lock(std::unique_ptr<Request>& r)
 {
-    /*
-    unsigned int tag = get_tag(r.m_addr);
-    unsigned int index = get_index(r.m_addr);
+    auto it = m_mshr_entries.find(r->m_addr);
     
-    std::cout << "clk: " << m_cache_sys->m_clk << std::endl;
-    std::cout << "Cache level: " << m_cache_level << std::endl;
-    
-    std::vector<CacheLine> &set = m_tagStore[index];
-    
-    std::copy(set.begin(), set.end(), std::ostream_iterator<CacheLine>(std::cout, " "));
-    std::cout << std::endl;
-    
-    auto it = std::find_if(set.begin(), set.end(), [tag, this](const CacheLine &l) { return l.tag == tag;});
-    std::cout << "hit_pos: " << (unsigned int)(it - set.begin()) << std::endl;
-    
-    it->lock = false;
+    if(it != m_mshr_entries.end())
+    {
+        if(get_tag(r->m_addr) == it->second->tag)
+        {
+            it->second->lock = false;
+        }
+        
+        m_mshr_entries.erase(it);
+        
+        //Ensure erasure in the MSHR
+        assert(m_mshr_entries.find(r->m_addr) == m_mshr_entries.end());
+    }
     
     try
     {
-        auto higher_cache = m_higher_cache.lock();
-        if(higher_cache != nullptr)
+        for(int i = 0; i < m_higher_caches.size(); i++)
         {
-            higher_cache->release_lock(r);
+            auto higher_cache = m_higher_caches[i].lock();
+            if(higher_cache != nullptr)
+            {
+                higher_cache->release_lock(r);
+            }
         }
     }
     catch(std::bad_weak_ptr &e)
     {
         std::cout << e.what() << std::endl;
     }
-    */
+}
 
+unsigned int Cache::get_latency_cycles()
+{
+    return m_latency_cycles;
 }

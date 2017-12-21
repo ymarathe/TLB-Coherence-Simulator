@@ -26,19 +26,22 @@ public:
     uint64_t m_addr;
     kind m_type;
     int m_core_id;
-    std::function<void(Request &)> m_callback;
+    std::function<void(std::unique_ptr<Request>&)>& m_callback;
     
-    Request(uint64_t addr, kind type, std::function<void(Request&)> callback, int core_id) :
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
     m_callback(callback) {}
     
-    Request(uint64_t addr, kind type, std::function<void(Request&)> callback) :
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback) :
     Request(addr, type, callback, 0) {}
     
-    Request(uint64_t addr, kind type) :
-    Request(addr, type, [](Request& req) {}, 0) {}
+    friend std::ostream& operator << (std::ostream &out, const Request &r)
+    {
+        out << "Addr: " << r.m_addr << ", kind: " << r.m_type << ", core : " << r.m_core_id << std::endl;
+        return out;
+    }
 };
 
 #endif /* Request_hpp */

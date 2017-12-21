@@ -23,6 +23,12 @@ enum Policy {
 class ReplState {
 public:
     int m_lru_stack_position;
+    
+    friend std::ostream& operator << (std::ostream &out, const ReplState &r)
+    {
+        out << r.m_lru_stack_position << ", ";
+        return out;
+    }
 };
 
 //Interface class for replacement policy
@@ -52,6 +58,8 @@ public:
     
     virtual unsigned int getVictim(uint64_t set_num) = 0;
     virtual void updateReplState(uint64_t set_num, int way) = 0;
+    virtual void printReplStateArr(uint64_t set_num) = 0;
+    
 };
 
 //LRU replacement class
@@ -68,6 +76,12 @@ public:
     }
     virtual unsigned int getVictim(uint64_t set_num) override final;
     virtual void updateReplState(uint64_t set_num, int way) override final;
+    
+    virtual void printReplStateArr(uint64_t set_num) override final
+    {
+        std::copy(replStateArr[set_num].begin(), replStateArr[set_num].end(), std::ostream_iterator<ReplState>(std::cout, " "));
+        std::cout << std::endl;
+    }
 };
 
 #endif /* ReplPolicy_hpp */

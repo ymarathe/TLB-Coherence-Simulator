@@ -37,7 +37,28 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache>& cache)
     cache->set_cache_sys(this);
     
     m_caches.push_back(cache);
+
+    assert(m_caches.size() <= NUM_MAX_CACHES);
     
+    unsigned int curr_cache_latency = cache->get_latency_cycles();
+    m_cache_latency_cycles[m_caches.size() - 1] = curr_cache_latency;
+    if(m_caches.size() > 1)
+    {
+        m_total_latency_cycles[m_caches.size() - 1] = m_total_latency_cycles[m_caches.size() - 2] + curr_cache_latency;
+        m_total_latency_cycles[MEMORY_ACCESS_ID] += curr_cache_latency;
+    }
+    else
+    {
+        m_total_latency_cycles[m_caches.size() - 1] = m_cache_latency_cycles[m_caches.size() - 1];
+        m_total_latency_cycles[MEMORY_ACCESS_ID] += curr_cache_latency;
+    }
+    
+    /*
+    std::cout << "L1 acc latency: " << m_total_latency_cycles[L1_HIT_ID] << std::endl;
+    std::cout << "L2 acc latency: " << m_total_latency_cycles[L2_HIT_ID] << std::endl;
+    std::cout << "L3 acc latency: " << m_total_latency_cycles[L3_HIT_ID] << std::endl;
+    std::cout << "Memory acc latency : " << m_total_latency_cycles[MEMORY_ACCESS_ID] << std::endl;
+    */
 }
 
 void CacheSys::makeCachesSentient()
@@ -72,17 +93,14 @@ void CacheSys::tick()
     m_clk++;
     
     //Then retire elements from wait list
-    for(std::map<uint64_t, Request>::iterator it = m_wait_list.begin();
+    for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_wait_list.begin();
         it != m_wait_list.end();
         )
     {
         if(m_clk >= it->first)
         {
-            it->second.m_callback(it->second);
-            for(std::map<uint64_t, Request>::iterator secondit = m_wait_list.begin(); secondit != m_wait_list.end(); secondit++)
-            {
-                std::cout << secondit->first << ", " << std::hex << secondit->second.m_addr << std::endl;
-            }
+            //std::cout << "Calling callback with " << it->second << " and for addr " << std::hex << it->second->m_addr << std::endl;
+            it->second->m_callback(it->second);
             it = m_wait_list.erase(it);
         }
         else
@@ -95,4 +113,13 @@ void CacheSys::tick()
 bool CacheSys::is_last_level(unsigned int cache_level)
 {
     return (cache_level == m_caches.size());
+}
+
+void CacheSys::printContents()
+{
+    for(int i = 0; i < m_caches.size(); i++)
+    {
+        m_caches[i]->printContents();
+        std::cout << "------------------------" << std::endl;
+    }
 }

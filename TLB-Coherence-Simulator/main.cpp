@@ -26,22 +26,28 @@ int main(int argc, const char * argv[])
     cache_hier.add_cache_to_hier(l3c_ptr);
 
     cache_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x3FFFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x1FFFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x01FFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     cache_hier[0]->lookupAndFillCache(0x00FFFFFFFFC0, TRANSLATION_WRITE);
+    cache_hier.tick();
     
-    cache_hier[0]->printContents();
-    std::cout << "---------------" << std::endl;
+    for(int i = 0; i < 246; i++)
+    {
+        cache_hier.tick();
+    }
     
-    cache_hier[1]->printContents();
-    std::cout << "---------------" << std::endl;
-    
-    cache_hier[2]->printContents();
-    std::cout << "---------------" << std::endl;
-
+    cache_hier.printContents();
 }

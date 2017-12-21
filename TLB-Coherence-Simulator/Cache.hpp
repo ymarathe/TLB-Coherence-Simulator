@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <vector>
+#include <map>
 #include "utils.hpp"
 #include "ReplPolicy.hpp"
 #include "CacheLine.h"
@@ -28,7 +29,7 @@ private:
     unsigned int m_num_index_bits;
     unsigned int m_num_tag_bits;
     
-    std::weak_ptr<Cache> m_higher_cache;
+    std::vector<std::weak_ptr<Cache>> m_higher_caches;
     std::weak_ptr<Cache> m_lower_cache;
     
     std::vector<std::vector<CacheLine>> m_tagStore;
@@ -36,10 +37,12 @@ private:
     
     CacheSys *m_cache_sys;
     
+    std::map<uint64_t, CacheLine*> m_mshr_entries;
+    
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;
     
-    std::function<void(Request &)> m_callback;
+    std::function<void(std::unique_ptr<Request>&)> m_callback;
     
 public:
     Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum Policy pol = LRU_POLICY):
@@ -67,24 +70,24 @@ public:
                 m_repl = new LRURepl(m_num_sets, m_associativity);
                 break;
         }
-        
-        
-        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+
     }
     
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);
     uint64_t get_line_offset(const uint64_t addr);
+    bool is_found(const std::vector<CacheLine>& set, const uint64_t tag, unsigned int &hit_pos);
     bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, unsigned int &hit_pos);
     void invalidate(const uint64_t addr);
     void evict(uint64_t set_num, const CacheLine &line);
-    bool lookupAndFillCache(const uint64_t addr, enum kind txn_kind);
+    RequestStatus lookupAndFillCache(const uint64_t addr, enum kind txn_kind);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);
     unsigned int get_level();
-    void release_lock(Request &r);
+    void release_lock(std::unique_ptr<Request> &r);
     void printContents();
     void set_cache_sys(CacheSys *cache_sys);
+    unsigned int get_latency_cycles();
 };
 #endif /* Cache_hpp */
