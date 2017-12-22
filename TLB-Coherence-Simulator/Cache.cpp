@@ -164,22 +164,20 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     
     auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid; });
     bool needs_eviction = (it_not_valid == set.end());
-    unsigned int insert_pos = needs_eviction ?  m_repl->getVictim(index) : (unsigned int)(it_not_valid - set.begin());
   
+    unsigned int insert_pos = m_repl->getVictim(index);
+    
     CacheLine &line = set[insert_pos];
     
     //Evict the victim line if not locked and update replacement state
     if(needs_eviction)
     {
         evict(index, line);
-        
-        //No need to update replacement state in case of no-eviction
-        //Order of insertion already set by LRU policy
-        //No need to update in case of writeback
-        if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
-        {
-            m_repl->updateReplState(index, insert_pos);
-        }
+    }
+    
+    if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
+    {
+        m_repl->updateReplState(index, insert_pos);
     }
     
     auto mshr_iter = m_mshr_entries.find(addr);
