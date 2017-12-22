@@ -24,4 +24,30 @@ typedef enum {
     MSHR_HIT_AND_LOCKED,
 } RequestStatus;
 
+typedef enum {
+    MODIFIED,
+    OWNER,
+    EXCLUSIVE,
+    SHARED,
+    INVALID,
+} CoherenceState;
+
+typedef enum {
+    NONE,
+    BROADCAST_READ,
+    BROADCAST_WRITE,
+    MEMORY_WRITEBACK,
+} CoherenceAction;
+
+typedef enum {
+    DATA_READ,
+    DATA_WRITE,
+    TRANSLATION_READ,
+    TRANSLATION_WRITE,
+    DATA_WRITEBACK,
+    TRANSLATION_WRITEBACK,
+    BROADCASTED_DATA_WRITE,
+    BROADCASTED_DATA_READ,
+} kind;
+
 #endif /* utils_hpp */

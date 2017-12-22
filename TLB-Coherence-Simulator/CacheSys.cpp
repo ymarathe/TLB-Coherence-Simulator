@@ -9,7 +9,7 @@
 #include "CacheSys.hpp"
 #include "Cache.hpp"
 
-void CacheSys::add_cache_to_hier(std::shared_ptr<Cache>& cache)
+void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
 {
     //Add higher caches
     if(m_caches.size() > 0)
@@ -52,45 +52,32 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache>& cache)
         m_total_latency_cycles[m_caches.size() - 1] = m_cache_latency_cycles[m_caches.size() - 1];
         m_total_latency_cycles[MEMORY_ACCESS_ID] += curr_cache_latency;
     }
-    
-    /*
-    std::cout << "L1 acc latency: " << m_total_latency_cycles[L1_HIT_ID] << std::endl;
-    std::cout << "L2 acc latency: " << m_total_latency_cycles[L2_HIT_ID] << std::endl;
-    std::cout << "L3 acc latency: " << m_total_latency_cycles[L3_HIT_ID] << std::endl;
-    std::cout << "Memory acc latency : " << m_total_latency_cycles[MEMORY_ACCESS_ID] << std::endl;
-    */
 }
 
-void CacheSys::makeCachesSentient()
+void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
 {
-    for(int i = 0; i < m_caches.size(); i++)
-    {
-        if(i > 0)
-        {
-            m_caches[i]->add_higher_cache(m_caches[i - 1]);
-        }
-        else
-        {
-            m_caches[i]->add_higher_cache(std::weak_ptr<Cache>());
-        }
-        
-        m_caches[i]->set_level(i + 1);
-        
-        if(i + 1 < m_caches.size())
-        {
-            m_caches[i]->add_lower_cache(m_caches[i + 1]);
-        }
-        
-        m_caches[i]->set_cache_sys(this);
-    }
-    
-    m_caches[m_caches.size() - 1]->add_lower_cache(std::weak_ptr<Cache>());
+    other_cache_sys.push_back(cs);
 }
 
 void CacheSys::tick()
 {
     //First, tick
     m_clk++;
+    
+    //Retire elements from hit list
+    for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_hit_list.begin();
+        it != m_hit_list.end();
+        )
+    {
+        if(m_clk >= it->first)
+        {
+            it = m_hit_list.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    }
     
     //Then retire elements from wait list
     for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_wait_list.begin();

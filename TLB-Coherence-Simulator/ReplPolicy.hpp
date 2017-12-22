@@ -59,6 +59,7 @@ public:
     virtual unsigned int getVictim(uint64_t set_num) = 0;
     virtual void updateReplState(uint64_t set_num, int way) = 0;
     virtual void printReplStateArr(uint64_t set_num) = 0;
+    virtual ~ReplPolicy() {}
     
 };
 

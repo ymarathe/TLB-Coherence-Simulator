@@ -113,7 +113,6 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     
     if(line.dirty)
     {
-        //std::cout << m_cache_level << std::endl;
         if(lower_cache != nullptr)
         {
             RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
@@ -133,7 +132,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     }
 }
 
-RequestStatus Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
+RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
@@ -155,10 +154,11 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
             m_repl->updateReplState(index, hit_pos);
         }
         
-        //std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
-        //m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->latency_cycles[m_cache_level], r));
+        //TODO:: Have some kind of callback here to retire memory instruction from ROB
+        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
+        m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
         
-        //std::cout << "Hit in " << index << ", " << hit_pos << ", in cache level " << m_cache_level << std::endl;
         return REQUEST_HIT;
     }
     
@@ -185,6 +185,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
     auto mshr_iter = m_mshr_entries.find(addr);
     if(mshr_iter != m_mshr_entries.end())
     {
+        //MSHR hit
         if((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK))
         {
             mshr_iter->second->dirty = true;
@@ -202,6 +203,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, enum kind txn_kind)
     }
     else if(m_mshr_entries.size() < 16)
     {
+        //MSHR miss, add entry
         line.valid = true;
         line.lock = true;
         line.tag = tag;
@@ -280,6 +282,8 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
     
     if(it != m_mshr_entries.end())
     {
+        //Handle corner case where a line is evicted when it is still in the 'lock' state
+        //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
         if(get_tag(r->m_addr) == it->second->tag)
         {
             it->second->lock = false;

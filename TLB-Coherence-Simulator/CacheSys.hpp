@@ -32,8 +32,11 @@ public:
     
     std::vector<std::shared_ptr<Cache>> m_caches;
     
-    //This is where requests wait until they are served
+    //This is where requests wait until they are served a memory access
     std::map<uint64_t, std::unique_ptr<Request>> m_wait_list;
+    
+    //This is where requests wait until they are served by a hit
+    std::map<uint64_t, std::unique_ptr<Request>> m_hit_list;
     
     uint64_t m_clk;
     
@@ -43,35 +46,22 @@ public:
     uint64_t m_memory_latency;
     uint64_t m_cache_to_cache_latency;
     
+    std::vector<std::shared_ptr<CacheSys>> other_cache_sys;
+    
     CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
     m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
     {
          m_total_latency_cycles[MEMORY_ACCESS_ID] = m_memory_latency;
     }
-
-    CacheSys(std::vector<std::shared_ptr<Cache>> &caches, uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50):
-        m_caches(caches),
-        m_clk(0),
-        m_memory_latency(memory_latency),
-        m_cache_to_cache_latency(cache_to_cache_latency)
-    {
-        m_total_latency_cycles[MEMORY_ACCESS_ID] = m_memory_latency;
-        makeCachesSentient();
-    }
     
-    void makeCachesSentient();
+    void add_cache_to_hier(std::shared_ptr<Cache> c);
     
-    void add_cache_to_hier(std::shared_ptr<Cache>& c);
+    void add_cachesys(std::shared_ptr<CacheSys> cs);
     
     void tick();
     
     bool is_last_level(unsigned int cache_level);
-    
-    std::shared_ptr<Cache>& operator [](int idx)
-    {
-        return m_caches.at(idx);
-    }
-    
+
     void printContents();
 };
 

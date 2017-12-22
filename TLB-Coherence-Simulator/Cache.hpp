@@ -73,6 +73,11 @@ public:
 
     }
     
+    ~Cache()
+    {
+        std::cout << "Deleting cache::" << m_cache_level << std::endl;
+    }
+    
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);
     uint64_t get_line_offset(const uint64_t addr);
@@ -80,7 +85,7 @@ public:
     bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, unsigned int &hit_pos);
     void invalidate(const uint64_t addr);
     void evict(uint64_t set_num, const CacheLine &line);
-    RequestStatus lookupAndFillCache(const uint64_t addr, enum kind txn_kind);
+    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);

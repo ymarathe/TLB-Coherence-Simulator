@@ -11,15 +11,7 @@
 
 #include <iostream>
 #include <functional>
-
-enum kind {
-    DATA_READ = 0,
-    DATA_WRITE = 1,
-    TRANSLATION_READ = 2,
-    TRANSLATION_WRITE = 3,
-    DATA_WRITEBACK = 4,
-    TRANSLATION_WRITEBACK = 5,
-};
+#include "utils.hpp"
 
 class Request {
 public:
