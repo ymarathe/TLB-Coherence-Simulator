@@ -16,6 +16,7 @@
 #include "ReplPolicy.hpp"
 #include "CacheLine.h"
 #include "Request.hpp"
+#include "Coherence.hpp"
 
 class CacheSys;
 
@@ -44,8 +45,10 @@ private:
     
     std::function<void(std::unique_ptr<Request>&)> m_callback;
     
+    bool m_is_coherence_enabled;
+    
 public:
-    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum Policy pol = LRU_POLICY):
+    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
     {
         
@@ -59,7 +62,12 @@ public:
             std::vector<CacheLine> set;
             for(int j = 0; j < m_associativity; j++)
             {
-                set.push_back(CacheLine());
+                set.emplace_back(CacheLine());
+                
+                //Want to associate a coherence protocol object with each cache line
+                CoherenceProtocol *coherence_prot = new MOESIProtocol();
+                set[j].set_coherence_prot(coherence_prot);
+                
             }
             m_tagStore.push_back(set);
         }
@@ -70,6 +78,8 @@ public:
                 m_repl = new LRURepl(m_num_sets, m_associativity);
                 break;
         }
+        
+        m_is_coherence_enabled = (prot != NO_COHERENCE);
 
     }
     

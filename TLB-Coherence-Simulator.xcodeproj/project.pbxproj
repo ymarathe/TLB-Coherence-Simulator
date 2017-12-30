@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		D62FCABA1FF6ECB2008C52CC /* Coherence.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D62FCAB81FF6ECB2008C52CC /* Coherence.cpp */; };
 		D64DD8341FD90E3100C3B9C0 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD8331FD90E3100C3B9C0 /* main.cpp */; };
 		D64DD83C1FD90E5900C3B9C0 /* Cache.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD83A1FD90E5900C3B9C0 /* Cache.cpp */; };
 		D64DD83F1FD90F5300C3B9C0 /* utils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD83D1FD90F5300C3B9C0 /* utils.cpp */; };
@@ -29,6 +30,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D61E7CE11FECDF5700943098 /* TLB-Coherence-Simulator.profdata */ = {isa = PBXFileReference; lastKnownFileType = file; path = "TLB-Coherence-Simulator.profdata"; sourceTree = "<group>"; };
+		D62FCAB81FF6ECB2008C52CC /* Coherence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Coherence.cpp; sourceTree = "<group>"; };
+		D62FCAB91FF6ECB2008C52CC /* Coherence.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Coherence.hpp; sourceTree = "<group>"; };
 		D64DD8301FD90E3100C3B9C0 /* TLB-Coherence-Simulator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "TLB-Coherence-Simulator"; sourceTree = BUILT_PRODUCTS_DIR; };
 		D64DD8331FD90E3100C3B9C0 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		D64DD83A1FD90E5900C3B9C0 /* Cache.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Cache.cpp; sourceTree = "<group>"; };
@@ -57,12 +61,21 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		D61E7CE01FECDF5700943098 /* OptimizationProfiles */ = {
+			isa = PBXGroup;
+			children = (
+				D61E7CE11FECDF5700943098 /* TLB-Coherence-Simulator.profdata */,
+			);
+			path = OptimizationProfiles;
+			sourceTree = "<group>";
+		};
 		D64DD8271FD90E3100C3B9C0 = {
 			isa = PBXGroup;
 			children = (
 				D64DD8441FD91DF000C3B9C0 /* CacheLine.h */,
 				D64DD8321FD90E3100C3B9C0 /* TLB-Coherence-Simulator */,
 				D64DD8311FD90E3100C3B9C0 /* Products */,
+				D61E7CE01FECDF5700943098 /* OptimizationProfiles */,
 			);
 			sourceTree = "<group>";
 		};
@@ -78,6 +91,8 @@
 			isa = PBXGroup;
 			children = (
 				D64DD8331FD90E3100C3B9C0 /* main.cpp */,
+				D62FCAB81FF6ECB2008C52CC /* Coherence.cpp */,
+				D62FCAB91FF6ECB2008C52CC /* Coherence.hpp */,
 				D64DD83A1FD90E5900C3B9C0 /* Cache.cpp */,
 				D66815A31FE3309800DFF8CA /* Core.cpp */,
 				D66815A41FE3309800DFF8CA /* Core.hpp */,
@@ -153,6 +168,7 @@
 			files = (
 				D64DD83F1FD90F5300C3B9C0 /* utils.cpp in Sources */,
 				D64DD83C1FD90E5900C3B9C0 /* Cache.cpp in Sources */,
+				D62FCABA1FF6ECB2008C52CC /* Coherence.cpp in Sources */,
 				D64DD8421FD915E800C3B9C0 /* ReplPolicy.cpp in Sources */,
 				D66815A51FE3309800DFF8CA /* Core.cpp in Sources */,
 				D69434ED1FDF3D7700DE361C /* Request.cpp in Sources */,
@@ -270,6 +286,7 @@
 		D64DD8381FD90E3100C3B9C0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_USE_OPTIMIZATION_PROFILE = YES;
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -278,6 +295,7 @@
 		D64DD8391FD90E3100C3B9C0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				CLANG_USE_OPTIMIZATION_PROFILE = YES;
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

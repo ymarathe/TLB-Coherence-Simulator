@@ -16,7 +16,7 @@
 //Placeholder class for replacement state
 //Currently tracks LRU stack position
 //In future, may track more
-enum Policy {
+enum ReplPolicyEnum {
     LRU_POLICY = 0,
 };
 

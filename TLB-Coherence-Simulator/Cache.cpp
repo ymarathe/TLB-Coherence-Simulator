@@ -159,6 +159,9 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
         
+        //Coherence handling
+        line.m_coherence_prot->setNextCoherenceState(txn_kind);
+        
         return REQUEST_HIT;
     }
     
@@ -234,6 +237,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
     
+    line.m_coherence_prot->setNextCoherenceState(txn_kind);
     return REQUEST_MISS;
 }
 
@@ -314,3 +318,4 @@ unsigned int Cache::get_latency_cycles()
 {
     return m_latency_cycles;
 }
+
