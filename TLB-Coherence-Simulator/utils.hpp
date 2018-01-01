@@ -14,6 +14,8 @@
 //Defines
 #define ADDR_SIZE 48
 
+#define stringify(name) #name
+
 unsigned int log2(unsigned int num);
 
 typedef enum {

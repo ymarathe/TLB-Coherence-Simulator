@@ -83,11 +83,6 @@ public:
 
     }
     
-    ~Cache()
-    {
-        std::cout << "Deleting cache::" << m_cache_level << std::endl;
-    }
-    
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);
     uint64_t get_line_offset(const uint64_t addr);

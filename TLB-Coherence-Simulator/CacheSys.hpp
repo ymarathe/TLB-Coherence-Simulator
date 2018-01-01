@@ -46,7 +46,9 @@ public:
     uint64_t m_memory_latency;
     uint64_t m_cache_to_cache_latency;
     
-    std::vector<std::shared_ptr<CacheSys>> other_cache_sys;
+    std::vector<std::shared_ptr<CacheSys>> m_other_cache_sys;
+    
+    int m_core_id;
     
     CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
     m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
@@ -63,6 +65,8 @@ public:
     bool is_last_level(unsigned int cache_level);
 
     void printContents();
+    
+    void set_core_id(int core_id);
     
     void handle_coherence_action(CoherenceAction coh_action, uint64_t addr);
 };

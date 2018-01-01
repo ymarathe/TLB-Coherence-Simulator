@@ -19,10 +19,10 @@ enum CoherenceProtocolEnum {
 
 class CoherenceProtocol {
 protected:
-    CoherenceState coh_state;
+    CoherenceState coh_state = INVALID;
 public:
     virtual CoherenceAction setNextCoherenceState(kind txn_kind) = 0;
-    CoherenceState getCoherenceState();
+    CoherenceState getCoherenceState();    
 };
 
 class MOESIProtocol : public CoherenceProtocol {

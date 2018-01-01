@@ -146,6 +146,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
 
 RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
 {
+    std::cout << "[lookupAndFillCache]::" << std::hex << addr << std::endl;
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
     uint64_t index = get_index(addr);
@@ -174,7 +175,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         //Coherence handling
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
         
-        handle_coherence_action(coh_action);
+        handle_coherence_action(coh_action, addr, true);
         
         return REQUEST_HIT;
     }
@@ -254,7 +255,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
     
-    handle_coherence_action(coh_action);
+    handle_coherence_action(coh_action, addr, true);
     
     return REQUEST_MISS;
 }
@@ -351,17 +352,20 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
             coh_action == BROADCAST_TRANSLATION_READ || coh_action == BROADCAST_TRANSLATION_WRITE
             )
     {
-        //Update caches in all other cache hierarchies
+        //Update caches in all other cache hierarchies if call is from the same hierarchy
         //Pass addr and coherence action enforeced by this cache
-        for(int i = 0; i < m_cache_sys->other_cache_sys.size(); i++)
+        if(same_cache_sys)
         {
-            m_cache_sys->other_cache_sys[i]->handle_coherence_action(coh_action, addr);
+            for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
+            {
+                m_cache_sys->m_other_cache_sys[i]->handle_coherence_action(coh_action, addr);
+                //std::cout << "[this cachesys]::" << m_cache_sys->m_core_id << "::[other cachesys]::" << m_cache_sys->m_other_cache_sys[i]->m_core_id << std::endl;
+            }
         }
-        
-        //If call came from different cache hierarchy, handle it!
-        //Invalidate if we see BROADCAST_*_WRITE
-        if(!same_cache_sys)
+        else
         {
+            //If call came from different cache hierarchy, handle it!
+            //Invalidate if we see BROADCAST_*_WRITE
             unsigned int hit_pos;
             uint64_t tag = get_tag(addr);
             uint64_t index = get_index(addr);
@@ -373,6 +377,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
+                    //std::cout << "Invalidating addr " << std::hex << addr << std::endl;
                     line.valid = false;
                 }
             }

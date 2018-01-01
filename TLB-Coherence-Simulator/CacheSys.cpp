@@ -56,7 +56,7 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
 
 void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
 {
-    other_cache_sys.push_back(cs);
+    m_other_cache_sys.push_back(cs);
 }
 
 void CacheSys::tick()
@@ -115,6 +115,12 @@ void CacheSys::handle_coherence_action(CoherenceAction coh_action, uint64_t addr
 {
     for(int i = 0; i < m_caches.size(); i++)
     {
+        //std::cout << "Inside handle coherence action for " << std::hex << addr << " on core " << m_core_id << std::endl;
         m_caches[i]->handle_coherence_action(coh_action, addr, false);
     }
+}
+
+void CacheSys::set_core_id(int core_id)
+{
+    m_core_id = core_id;
 }
