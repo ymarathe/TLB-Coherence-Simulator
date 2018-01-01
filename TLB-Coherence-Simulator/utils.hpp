@@ -43,6 +43,7 @@ typedef enum {
 } CoherenceAction;
 
 typedef enum {
+    INVALID_KIND,
     DATA_READ,
     DATA_WRITE,
     TRANSLATION_READ,
@@ -54,5 +55,7 @@ typedef enum {
     DIRECTORY_TRANSLATION_WRITE,
     DIRECTORY_TRANSLATION_READ,
 } kind;
+
+kind txnKindForCohAction(CoherenceAction coh_action);
 
 #endif /* utils_hpp */

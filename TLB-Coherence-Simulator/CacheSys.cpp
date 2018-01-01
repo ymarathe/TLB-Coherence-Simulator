@@ -110,3 +110,11 @@ void CacheSys::printContents()
         std::cout << "------------------------" << std::endl;
     }
 }
+
+void CacheSys::handle_coherence_action(CoherenceAction coh_action, uint64_t addr)
+{
+    for(int i = 0; i < m_caches.size(); i++)
+    {
+        m_caches[i]->handle_coherence_action(coh_action, addr, false);
+    }
+}

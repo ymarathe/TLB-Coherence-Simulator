@@ -104,6 +104,6 @@ public:
     void printContents();
     void set_cache_sys(CacheSys *cache_sys);
     unsigned int get_latency_cycles();
-    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr = 0x0);
+    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr = 0x0, bool same_cache_sys = true);
 };
 #endif /* Cache_hpp */

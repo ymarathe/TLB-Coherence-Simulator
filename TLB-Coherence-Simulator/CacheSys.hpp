@@ -63,6 +63,8 @@ public:
     bool is_last_level(unsigned int cache_level);
 
     void printContents();
+    
+    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr);
 };
 
 #endif /* CacheSys_hpp */

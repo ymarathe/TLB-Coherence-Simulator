@@ -11,6 +11,7 @@
 #include <assert.h>
 #include <vector>
 #include <iomanip>
+#include "utils.hpp"
 
 uint64_t Cache::get_line_offset(const uint64_t addr)
 {
@@ -80,21 +81,27 @@ void Cache::invalidate(const uint64_t addr)
 void Cache::evict(uint64_t set_num, const CacheLine &line)
 {
     //Send back invalidate
+    
     uint64_t evict_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (set_num << m_num_line_offset_bits);
-    try
+    
+    //Simulating non-inclusive caches for now.
+    if(0)
     {
-        for(int i = 0; i < m_higher_caches.size(); i++)
+        try
         {
-            auto higher_cache = m_higher_caches[i].lock();
-            if(higher_cache != nullptr)
+            for(int i = 0; i < m_higher_caches.size(); i++)
             {
-                higher_cache->invalidate(evict_addr);
+                auto higher_cache = m_higher_caches[i].lock();
+                if(higher_cache != nullptr)
+                {
+                    higher_cache->invalidate(evict_addr);
+                }
             }
         }
-    }
-    catch(std::bad_weak_ptr &e)
-    {
-        std::cout << "Cache " << m_cache_level << "doesn't have a valid higher cache" << std::endl;
+        catch(std::bad_weak_ptr &e)
+        {
+            std::cout << "Cache " << m_cache_level << "doesn't have a valid higher cache" << std::endl;
+        }
     }
     
     //Send writeback if dirty
@@ -330,26 +337,46 @@ unsigned int Cache::get_latency_cycles()
     return m_latency_cycles;
 }
 
-void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr)
+void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys)
 {
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
-        //Writeback to memory
-        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        kind coh_txn_kind = coh_action == MEMORY_TRANSLATION_WRITEBACK ? TRANSLATION_WRITEBACK : DATA_WRITEBACK;
+        kind coh_txn_kind = txnKindForCohAction(coh_action);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
+    
     else if(coh_action == BROADCAST_DATA_READ || coh_action == BROADCAST_DATA_WRITE || \
             coh_action == BROADCAST_TRANSLATION_READ || coh_action == BROADCAST_TRANSLATION_WRITE
             )
     {
         //Update caches in all other cache hierarchies
-        //Pass addr, txn_kind according to coh_action seen
-        //Handle coherence action in correct lines of all other caches IF line is present
-        //Using is_found
+        //Pass addr and coherence action enforeced by this cache
+        for(int i = 0; i < m_cache_sys->other_cache_sys.size(); i++)
+        {
+            m_cache_sys->other_cache_sys[i]->handle_coherence_action(coh_action, addr);
+        }
+        
+        //If call came from different cache hierarchy, handle it!
         //Invalidate if we see BROADCAST_*_WRITE
+        if(!same_cache_sys)
+        {
+            unsigned int hit_pos;
+            uint64_t tag = get_tag(addr);
+            uint64_t index = get_index(addr);
+            std::vector<CacheLine>& set = m_tagStore[index];
+            if(is_found(set, tag, hit_pos))
+            {
+                CacheLine &line = set[hit_pos];
+                kind coh_txn_kind = txnKindForCohAction(coh_action);
+                line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
+                if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
+                {
+                    line.valid = false;
+                }
+            }
+        }
     }
 }
 

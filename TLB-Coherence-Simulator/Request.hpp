@@ -18,16 +18,21 @@ public:
     uint64_t m_addr;
     kind m_type;
     int m_core_id;
+    int m_cache_level;
     std::function<void(std::unique_ptr<Request>&)>& m_callback;
     
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id) :
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id, int cache_level) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
+    m_cache_level(cache_level),
     m_callback(callback) {}
     
     Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback) :
-    Request(addr, type, callback, 0) {}
+    Request(addr, type, callback, 0, 0) {}
+    
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id) :
+    Request(addr, type, callback, core_id, 0) {}
     
     friend std::ostream& operator << (std::ostream &out, const Request &r)
     {
