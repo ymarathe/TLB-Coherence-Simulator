@@ -118,6 +118,11 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
             assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
         }
+        else
+        {
+            //Writeback to memory
+            
+        }
     }
     else
     {
@@ -160,7 +165,9 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
         
         //Coherence handling
-        line.m_coherence_prot->setNextCoherenceState(txn_kind);
+        CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
+        
+        handle_coherence_action(coh_action);
         
         return REQUEST_HIT;
     }
@@ -232,12 +239,16 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     }
     else
     {
+        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
     
-    line.m_coherence_prot->setNextCoherenceState(txn_kind);
+    CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
+    
+    handle_coherence_action(coh_action);
+    
     return REQUEST_MISS;
 }
 
@@ -317,5 +328,28 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
 unsigned int Cache::get_latency_cycles()
 {
     return m_latency_cycles;
+}
+
+void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr)
+{
+    if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
+    {
+        //Writeback to memory
+        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
+        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        kind coh_txn_kind = coh_action == MEMORY_TRANSLATION_WRITEBACK ? TRANSLATION_WRITEBACK : DATA_WRITEBACK;
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
+        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
+    }
+    else if(coh_action == BROADCAST_DATA_READ || coh_action == BROADCAST_DATA_WRITE || \
+            coh_action == BROADCAST_TRANSLATION_READ || coh_action == BROADCAST_TRANSLATION_WRITE
+            )
+    {
+        //Update caches in all other cache hierarchies
+        //Pass addr, txn_kind according to coh_action seen
+        //Handle coherence action in correct lines of all other caches IF line is present
+        //Using is_found
+        //Invalidate if we see BROADCAST_*_WRITE
+    }
 }
 
