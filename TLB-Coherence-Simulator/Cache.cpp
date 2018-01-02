@@ -383,12 +383,12 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
             std::vector<CacheLine>& set = m_tagStore[index];
             if(is_found(set, tag, hit_pos))
             {
-                std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
                 CacheLine &line = set[hit_pos];
                 kind coh_txn_kind = txnKindForCohAction(coh_action);
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
+                    std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
