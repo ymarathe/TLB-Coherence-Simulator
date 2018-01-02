@@ -56,7 +56,7 @@ public:
         }
     }
     
-    virtual unsigned int getVictim(uint64_t set_num) = 0;
+    virtual unsigned int getVictim(std::vector<CacheLine>& set, uint64_t set_num) = 0;
     virtual void updateReplState(uint64_t set_num, int way) = 0;
     virtual void printReplStateArr(uint64_t set_num) = 0;
     virtual ~ReplPolicy() {}
@@ -75,7 +75,7 @@ public:
             }
         }
     }
-    virtual unsigned int getVictim(uint64_t set_num) override final;
+    virtual unsigned int getVictim(std::vector<CacheLine>& set, uint64_t set_num) override final;
     virtual void updateReplState(uint64_t set_num, int way) override final;
     
     virtual void printReplStateArr(uint64_t set_num) override final

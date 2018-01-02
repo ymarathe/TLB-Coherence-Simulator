@@ -9,9 +9,16 @@
 #include "ReplPolicy.hpp"
 #include <assert.h>
 
-unsigned int LRURepl::getVictim(uint64_t set_num)
+unsigned int LRURepl::getVictim(std::vector<CacheLine>& set, uint64_t set_num)
 {
     assert(set_num < m_num_sets);
+    auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid;});
+    
+    if(it_not_valid != set.end())
+    {
+        return (unsigned int)(it_not_valid - set.begin());
+    }
+    
     std::vector<ReplState> setReplState = replStateArr[set_num];
     int victim = -1;
     

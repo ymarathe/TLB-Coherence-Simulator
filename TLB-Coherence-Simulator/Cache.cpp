@@ -186,7 +186,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid; });
     bool needs_eviction = (it_not_valid == set.end());
   
-    unsigned int insert_pos = m_repl->getVictim(index);
+    unsigned int insert_pos = m_repl->getVictim(set, index);
     
     CacheLine &line = set[insert_pos];
     
@@ -262,6 +262,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
 
     //If we need to do writeback, we need to do it for addr already in cache
     //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
+    
     uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
     
     handle_coherence_action(coh_action, coh_addr, true);
@@ -369,7 +370,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                std::cout << "[" << m_cache_level << "] Coherence update from " << m_cache_sys->m_core_id << " to " << m_cache_sys->m_other_cache_sys[i]->m_core_id << " for addr " << std::hex << addr << std::endl;
+                //std::cout << "[" << m_cache_level << "] Coherence update from " << m_cache_sys->m_core_id << " to " << m_cache_sys->m_other_cache_sys[i]->m_core_id << " for addr " << std::hex << addr << std::endl;
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(addr, coh_action));
             }
         }
@@ -388,7 +389,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
-                    std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
+                    //std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }

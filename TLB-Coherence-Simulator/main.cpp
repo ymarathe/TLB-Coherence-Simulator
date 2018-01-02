@@ -66,7 +66,8 @@ int main(int argc, const char * argv[])
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c1->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
+    RequestStatus r = l1c_ptr_c1->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
+    std::cout << "Request status: " << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
     
@@ -94,11 +95,17 @@ int main(int argc, const char * argv[])
     cs[0]->tick();
     cs[1]->tick();
     
+    
     for(int i = 0; i < 1000; i++)
     {
         cs[0]->tick();
         cs[1]->tick();
     }
+    
+    r = l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
+    std::cout << "Request status::" << r << std::endl;
+    cs[0]->tick();
+    cs[1]->tick();
     
     std::cout << "-------Core 1 caches begin -------" << std::endl;
     cs[0]->printContents();
@@ -106,4 +113,10 @@ int main(int argc, const char * argv[])
     std::cout << "-------Core 2 caches begin -------" << std::endl;
     cs[1]->printContents();
     std::cout << "-------Core 2 caches end ---------" << std::endl;
+    
+    r = l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    std::cout << "Request status::" << r << std::endl;
+    cs[0]->tick();
+    cs[1]->tick();
+    
 }
