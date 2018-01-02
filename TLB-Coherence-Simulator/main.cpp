@@ -114,9 +114,4 @@ int main(int argc, const char * argv[])
     cs[1]->printContents();
     std::cout << "-------Core 2 caches end ---------" << std::endl;
     
-    r = l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
-    std::cout << "Request status::" << r << std::endl;
-    cs[0]->tick();
-    cs[1]->tick();
-    
 }

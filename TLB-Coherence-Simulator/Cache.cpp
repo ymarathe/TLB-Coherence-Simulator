@@ -28,7 +28,7 @@ uint64_t Cache::get_tag(const uint64_t addr)
     return ((addr >> m_num_line_offset_bits) >> m_num_index_bits);
 }
 
-bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, unsigned int &hit_pos)
+bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translatiion, unsigned int &hit_pos)
 {
     auto it = std::find_if(set.begin(), set.end(), [tag, this](const CacheLine &l)
                            {
@@ -39,12 +39,12 @@ bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, unsi
     return (it != set.end());
 }
 
-bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, unsigned int &hit_pos)
+bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, unsigned int &hit_pos)
 {
-    return is_found(set, tag, hit_pos) & !set[hit_pos].lock;
+    return is_found(set, tag, is_translation, hit_pos) & !set[hit_pos].lock;
 }
 
-void Cache::invalidate(const uint64_t addr)
+void Cache::invalidate(const uint64_t addr, bool is_translation)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
@@ -54,7 +54,7 @@ void Cache::invalidate(const uint64_t addr)
     //If we find line in the cache, invalidate the line
     //std::cout << "Back invalidate[Cache: " << m_cache_level << "]: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << addr <<  std::endl ;
     
-    if(is_found(set, tag, hit_pos))
+    if(is_found(set, tag, is_translation, hit_pos))
     {
         set[hit_pos].valid = false;
     }
@@ -68,7 +68,7 @@ void Cache::invalidate(const uint64_t addr)
             auto higher_cache = m_higher_caches[i].lock();
             if(higher_cache != nullptr)
             {
-                higher_cache->invalidate(addr);
+                higher_cache->invalidate(addr, is_translation);
             }
         }
     }
@@ -93,7 +93,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
                 auto higher_cache = m_higher_caches[i].lock();
                 if(higher_cache != nullptr)
                 {
-                    higher_cache->invalidate(evict_addr);
+                    higher_cache->invalidate(evict_addr, line.is_translation);
                 }
             }
         }
@@ -143,7 +143,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             uint64_t index = lower_cache->get_index(evict_addr);
             uint64_t tag = lower_cache->get_index(evict_addr);
             std::vector<CacheLine> set = lower_cache->m_tagStore[index];
-            assert(lower_cache->is_found(set, tag, hit_pos));
+            assert(lower_cache->is_found(set, tag, line.is_translation, hit_pos));
         }
     }
 }
@@ -155,7 +155,9 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     uint64_t index = get_index(addr);
     std::vector<CacheLine>& set = m_tagStore[index];
     
-    if(is_hit(set, tag, hit_pos))
+    bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
+    
+    if(is_hit(set, tag, is_translation, hit_pos))
     {
         CacheLine &line = set[hit_pos];
         
@@ -382,7 +384,8 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
             uint64_t tag = get_tag(addr);
             uint64_t index = get_index(addr);
             std::vector<CacheLine>& set = m_tagStore[index];
-            if(is_found(set, tag, hit_pos))
+            bool is_translation = (coh_action == BROADCAST_TRANSLATION_WRITE) || (coh_action == BROADCAST_TRANSLATION_READ);
+            if(is_found(set, tag, is_translation, hit_pos))
             {
                 CacheLine &line = set[hit_pos];
                 kind coh_txn_kind = txnKindForCohAction(coh_action);
