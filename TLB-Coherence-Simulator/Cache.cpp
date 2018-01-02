@@ -84,8 +84,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     
     uint64_t evict_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (set_num << m_num_line_offset_bits);
     
-    //Simulating non-inclusive caches for now.
-    if(0)
+    if(m_inclusive)
     {
         try
         {
@@ -125,7 +124,10 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
             //On eviction, force coherence state to be invalid.
             line.m_coherence_prot->forceCoherenceState(INVALID);
-            assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
+            if(m_inclusive)
+            {
+                assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
+            }
         }
         else
         {
@@ -135,7 +137,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     }
     else
     {
-        if(lower_cache != nullptr)
+        if(lower_cache != nullptr && m_inclusive)
         {
             unsigned int hit_pos;
             uint64_t index = lower_cache->get_index(evict_addr);
@@ -187,6 +189,8 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     unsigned int insert_pos = m_repl->getVictim(index);
     
     CacheLine &line = set[insert_pos];
+    
+    uint64_t cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
     
     //Evict the victim line if not locked and update replacement state
     if(needs_eviction)
@@ -255,8 +259,12 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     }
     
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
+
+    //If we need to do writeback, we need to do it for addr already in cache
+    //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
+    uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
     
-    handle_coherence_action(coh_action, addr, true);
+    handle_coherence_action(coh_action, coh_addr, true);
     
     return REQUEST_MISS;
 }
@@ -343,12 +351,14 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
 {
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
-        //Send request to memory.
+        //Send request to memory
+        //Writeback should be from the cache line in question?
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         kind coh_txn_kind = txnKindForCohAction(coh_action);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
+    
     else if(coh_action == BROADCAST_DATA_READ || coh_action == BROADCAST_DATA_WRITE || \
             coh_action == BROADCAST_TRANSLATION_READ || coh_action == BROADCAST_TRANSLATION_WRITE
             )
@@ -379,8 +389,8 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
-                    //std::cout << "Invalidating addr " << std::hex << addr << std::endl;
                     line.valid = false;
+                    assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
             }
         }

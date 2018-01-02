@@ -47,8 +47,10 @@ private:
     
     bool m_is_coherence_enabled;
     
+    bool m_inclusive;
+    
 public:
-    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE):
+    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
     {
         
@@ -80,6 +82,8 @@ public:
         }
         
         m_is_coherence_enabled = (prot != NO_COHERENCE);
+        
+        m_inclusive = inclusive;
 
     }
     
@@ -99,6 +103,6 @@ public:
     void printContents();
     void set_cache_sys(CacheSys *cache_sys);
     unsigned int get_latency_cycles();
-    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr = 0x0, bool same_cache_sys = true);
+    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys);
 };
 #endif /* Cache_hpp */
