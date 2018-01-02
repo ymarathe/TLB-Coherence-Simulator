@@ -30,7 +30,6 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		D61E7CE11FECDF5700943098 /* TLB-Coherence-Simulator.profdata */ = {isa = PBXFileReference; lastKnownFileType = file; path = "TLB-Coherence-Simulator.profdata"; sourceTree = "<group>"; };
 		D62FCAB81FF6ECB2008C52CC /* Coherence.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Coherence.cpp; sourceTree = "<group>"; };
 		D62FCAB91FF6ECB2008C52CC /* Coherence.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Coherence.hpp; sourceTree = "<group>"; };
 		D64DD8301FD90E3100C3B9C0 /* TLB-Coherence-Simulator */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "TLB-Coherence-Simulator"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -64,7 +63,6 @@
 		D61E7CE01FECDF5700943098 /* OptimizationProfiles */ = {
 			isa = PBXGroup;
 			children = (
-				D61E7CE11FECDF5700943098 /* TLB-Coherence-Simulator.profdata */,
 			);
 			path = OptimizationProfiles;
 			sourceTree = "<group>";
@@ -286,7 +284,7 @@
 		D64DD8381FD90E3100C3B9C0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_USE_OPTIMIZATION_PROFILE = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = NO;
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
@@ -295,7 +293,7 @@
 		D64DD8391FD90E3100C3B9C0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				CLANG_USE_OPTIMIZATION_PROFILE = YES;
+				CLANG_USE_OPTIMIZATION_PROFILE = NO;
 				CODE_SIGN_STYLE = Automatic;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};

@@ -24,6 +24,29 @@ public:
     virtual CoherenceAction setNextCoherenceState(kind txn_kind) = 0;
     CoherenceState getCoherenceState();
     void forceCoherenceState(CoherenceState coh_state);
+    
+    friend std::ostream& operator << (std::ostream& out, CoherenceProtocol &c)
+    {
+        switch(c.coh_state)
+        {
+            case MODIFIED:
+                out << "|M|";
+                break;
+            case OWNER:
+                out << "|O|";
+                break;
+            case EXCLUSIVE:
+                out << "|E|";
+                break;
+            case SHARED:
+                out << "|S|";
+                break;
+            case INVALID:
+                out << "|I|";
+                break;
+        }
+        return out;
+    }
 };
 
 class MOESIProtocol : public CoherenceProtocol {

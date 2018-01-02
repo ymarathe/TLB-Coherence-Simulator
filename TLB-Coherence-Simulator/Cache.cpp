@@ -295,7 +295,7 @@ void Cache::printContents()
     {
         for(auto &line : set)
         {
-            std::cout << line;
+            std::cout << *(line.m_coherence_prot) << line;
         }
         std::cout << std::endl;
     }

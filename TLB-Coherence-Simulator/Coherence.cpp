@@ -55,7 +55,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
         case OWNER:
             if(txn_kind == DIRECTORY_DATA_WRITE)
             {
-                    //Owner responsible for doing writeback of dirty data
+                //Owner responsible for doing writeback of dirty data
                 next_coh_state = INVALID;
                 coh_action =  MEMORY_DATA_WRITEBACK;
             }
