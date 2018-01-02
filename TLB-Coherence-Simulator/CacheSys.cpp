@@ -61,7 +61,21 @@ void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
 
 void CacheSys::tick()
 {
-    //First, tick
+    //First, handle coherence actions in the current clock cycle
+    for(std::map<uint64_t, CoherenceAction>::iterator it = m_coh_act_list.begin();
+        it != m_coh_act_list.end(); )
+    {
+        for(int i = 0; i < m_caches.size() - 1; i++)
+        {
+            m_caches[i]->handle_coherence_action(it->second, it->first, false);
+        }
+        
+        it = m_coh_act_list.erase(it);
+    }
+    
+    assert(m_coh_act_list.empty());
+    
+    //Then, tick
     m_clk++;
     
     //Retire elements from hit list
@@ -108,15 +122,6 @@ void CacheSys::printContents()
     {
         m_caches[i]->printContents();
         std::cout << "------------------------" << std::endl;
-    }
-}
-
-void CacheSys::handle_coherence_action(CoherenceAction coh_action, uint64_t addr)
-{
-    for(int i = 0; i < m_caches.size(); i++)
-    {
-        //std::cout << "Inside handle coherence action for " << std::hex << addr << " on core " << m_core_id << std::endl;
-        m_caches[i]->handle_coherence_action(coh_action, addr, false);
     }
 }
 

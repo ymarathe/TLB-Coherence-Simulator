@@ -36,6 +36,6 @@ kind txnKindForCohAction(CoherenceAction coh_action)
         case MEMORY_TRANSLATION_WRITEBACK:
             return TRANSLATION_WRITEBACK;
         default:
-            return INVALID_KIND;
+            return INVALID_TXN_KIND;
     }
 }

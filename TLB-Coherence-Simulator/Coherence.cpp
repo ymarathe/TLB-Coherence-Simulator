@@ -13,6 +13,11 @@ CoherenceState CoherenceProtocol::getCoherenceState()
     return coh_state;
 }
 
+void CoherenceProtocol::forceCoherenceState(CoherenceState cs)
+{
+    coh_state = cs;
+}
+
 CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
 {
         CoherenceAction coh_action = NONE;

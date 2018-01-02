@@ -45,7 +45,7 @@ typedef enum {
 } CoherenceAction;
 
 typedef enum {
-    INVALID_KIND,
+    INVALID_TXN_KIND,
     DATA_READ,
     DATA_WRITE,
     TRANSLATION_READ,

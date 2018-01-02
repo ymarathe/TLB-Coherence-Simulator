@@ -123,6 +123,8 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
         if(lower_cache != nullptr)
         {
             RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
+            //On eviction, force coherence state to be invalid.
+            line.m_coherence_prot->forceCoherenceState(INVALID);
             assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
         }
         else
@@ -146,7 +148,6 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
 
 RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
 {
-    std::cout << "[lookupAndFillCache]::" << std::hex << addr << std::endl;
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
     uint64_t index = get_index(addr);
@@ -342,27 +343,27 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
 {
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
+        //Send request to memory.
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         kind coh_txn_kind = txnKindForCohAction(coh_action);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
-    
     else if(coh_action == BROADCAST_DATA_READ || coh_action == BROADCAST_DATA_WRITE || \
             coh_action == BROADCAST_TRANSLATION_READ || coh_action == BROADCAST_TRANSLATION_WRITE
             )
     {
         //Update caches in all other cache hierarchies if call is from the same hierarchy
-        //Pass addr and coherence action enforeced by this cache
-        if(same_cache_sys)
+        //Pass addr and coherence action enforced by this cache
+        if(same_cache_sys && !m_cache_sys->is_last_level(m_cache_level))
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                m_cache_sys->m_other_cache_sys[i]->handle_coherence_action(coh_action, addr);
-                //std::cout << "[this cachesys]::" << m_cache_sys->m_core_id << "::[other cachesys]::" << m_cache_sys->m_other_cache_sys[i]->m_core_id << std::endl;
+                std::cout << "[" << m_cache_level << "] Coherence update from " << m_cache_sys->m_core_id << " to " << m_cache_sys->m_other_cache_sys[i]->m_core_id << " for addr " << std::hex << addr << std::endl;
+                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(addr, coh_action));
             }
         }
-        else
+        else if(!same_cache_sys)
         {
             //If call came from different cache hierarchy, handle it!
             //Invalidate if we see BROADCAST_*_WRITE
@@ -372,6 +373,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
             std::vector<CacheLine>& set = m_tagStore[index];
             if(is_found(set, tag, hit_pos))
             {
+                std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
                 CacheLine &line = set[hit_pos];
                 kind coh_txn_kind = txnKindForCohAction(coh_action);
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);

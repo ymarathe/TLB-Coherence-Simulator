@@ -15,11 +15,11 @@ int main(int argc, const char * argv[])
 #define NUM_CORES 2
     
     std::shared_ptr<Cache> l1c_ptr_c1 = std::make_shared<Cache>(Cache(1, 2, 64, 3));
-    std::shared_ptr<Cache> l2c_ptr_c1 = std::make_shared<Cache>(Cache(2, 8, 64, 10));
+    std::shared_ptr<Cache> l2c_ptr_c1 = std::make_shared<Cache>(Cache(2, 4, 64, 10));
     std::shared_ptr<Cache> l3c_ptr = std::make_shared<Cache>(Cache(4, 8, 64, 25));
     
     std::shared_ptr<Cache> l1c_ptr_c2 = std::make_shared<Cache>(Cache(1, 2, 64, 3));
-    std::shared_ptr<Cache> l2c_ptr_c2 = std::make_shared<Cache>(Cache(2, 8, 64, 10));
+    std::shared_ptr<Cache> l2c_ptr_c2 = std::make_shared<Cache>(Cache(2, 4, 64, 10));
     
     std::vector<std::shared_ptr<CacheSys>> cs;
     

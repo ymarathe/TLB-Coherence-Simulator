@@ -38,6 +38,9 @@ public:
     //This is where requests wait until they are served by a hit
     std::map<uint64_t, std::unique_ptr<Request>> m_hit_list;
     
+    //This is where coherence actions wait until they are served
+    std::map<uint64_t, CoherenceAction> m_coh_act_list;
+    
     uint64_t m_clk;
     
     uint64_t m_cache_latency_cycles[NUM_MAX_CACHES];
@@ -67,8 +70,6 @@ public:
     void printContents();
     
     void set_core_id(int core_id);
-    
-    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr);
 };
 
 #endif /* CacheSys_hpp */
