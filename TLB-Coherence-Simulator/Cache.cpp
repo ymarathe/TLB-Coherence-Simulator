@@ -28,11 +28,11 @@ uint64_t Cache::get_tag(const uint64_t addr)
     return ((addr >> m_num_line_offset_bits) >> m_num_index_bits);
 }
 
-bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translatiion, unsigned int &hit_pos)
+bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, unsigned int &hit_pos)
 {
-    auto it = std::find_if(set.begin(), set.end(), [tag, this](const CacheLine &l)
+    auto it = std::find_if(set.begin(), set.end(), [tag, is_translation, this](const CacheLine &l)
                            {
-                               return ((l.tag == tag) && (l.valid));
+                               return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation));
                            });
     
     hit_pos = static_cast<unsigned int>(it - set.begin());
