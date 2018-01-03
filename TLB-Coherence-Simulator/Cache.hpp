@@ -23,6 +23,15 @@ class CacheSys;
 class Cache
 {
 private:
+    
+    class MSHREntry {
+    public:
+        kind m_txn_kind;
+        CacheLine *m_line;
+        
+        MSHREntry(kind txn_kind, CacheLine *line) : m_txn_kind(txn_kind), m_line(line) {}
+    };
+    
     unsigned int m_num_sets;
     unsigned int m_associativity;
     unsigned int m_line_size;
@@ -38,7 +47,8 @@ private:
     
     CacheSys *m_cache_sys;
     
-    std::map<uint64_t, CacheLine*> m_mshr_entries;
+    //std::map<uint64_t, CacheLine*> m_mshr_entries;
+    std::map<uint64_t, MSHREntry*> m_mshr_entries;
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;

@@ -186,7 +186,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     }
     
     auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid; });
-    bool needs_eviction = (it_not_valid == set.end());
+    bool needs_eviction = (it_not_valid == set.end()) && (!is_found(set, tag, is_translation, hit_pos));
   
     unsigned int insert_pos = m_repl->getVictim(set, index);
     
@@ -209,14 +209,29 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     if(mshr_iter != m_mshr_entries.end())
     {
         //MSHR hit
-        if((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK))
+        if(((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK)) && \
+            (get_tag(addr) == mshr_iter->second->m_line->tag) && \
+            (is_translation == mshr_iter->second->m_line->is_translation))
         {
-            mshr_iter->second->dirty = true;
+                mshr_iter->second->m_line->dirty = true;
+        }
+        
+        if(get_tag(addr) == mshr_iter->second->m_line->tag && \
+           (is_translation == mshr_iter->second->m_line->is_translation))
+        {
+            CoherenceAction coh_action = mshr_iter->second->m_line->m_coherence_prot->setNextCoherenceState(txn_kind);
+            
+            //If we need to do writeback, we need to do it for addr already in cache
+            //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
+        
+            uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
+        
+            handle_coherence_action(coh_action, coh_addr, true);
         }
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
         {
-            assert(mshr_iter->second->lock);
+            assert(mshr_iter->second->m_line->lock);
             return MSHR_HIT_AND_LOCKED;
         }
         else
@@ -232,7 +247,8 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         line.tag = tag;
         line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
         line.dirty = (txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK);
-        m_mshr_entries.insert(std::make_pair(addr, &line));
+        MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
+        m_mshr_entries.insert(std::make_pair(addr, mshr_entry));
     }
     else
     {
@@ -317,9 +333,9 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
         //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
-        if(get_tag(r->m_addr) == it->second->tag)
+        if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
-            it->second->lock = false;
+            it->second->m_line->lock = false;
         }
         
         m_mshr_entries.erase(it);
@@ -400,4 +416,3 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         }
     }
 }
-
