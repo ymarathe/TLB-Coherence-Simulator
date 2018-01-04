@@ -70,6 +70,9 @@ public:
     void printContents();
     
     void set_core_id(int core_id);
+    
+    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
+    
 };
 
 #endif /* CacheSys_hpp */

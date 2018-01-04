@@ -129,3 +129,8 @@ void CacheSys::set_core_id(int core_id)
 {
     m_core_id = core_id;
 }
+
+RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind)
+{
+    return m_caches[0]->lookupAndFillCache(addr, txn_kind);
+}

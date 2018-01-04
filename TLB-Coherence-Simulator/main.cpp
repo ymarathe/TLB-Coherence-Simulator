@@ -50,48 +50,48 @@ int main(int argc, const char * argv[])
         }
     }
     
-    l1c_ptr_c1->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_WRITE);
+    cs[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c2->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_WRITE);
+    cs[1]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c1->lookupAndFillCache(0x3FFFFFFFFFC0, TRANSLATION_WRITE);
+    cs[0]->lookupAndFillCache(0x3FFFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c2->lookupAndFillCache(0x1FFFFFFFFFC0, TRANSLATION_WRITE);
+    cs[1]->lookupAndFillCache(0x1FFFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    RequestStatus r = l1c_ptr_c1->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
+    RequestStatus r = cs[0]->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
     std::cout << "Request status: " << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c2->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
+    cs[1]->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c1->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
+    cs[0]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c2->lookupAndFillCache(0x01FFFFFFFFC0, TRANSLATION_WRITE);
+    cs[1]->lookupAndFillCache(0x01FFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c1->lookupAndFillCache(0x00FFFFFFFFC0, TRANSLATION_WRITE);
+    cs[0]->lookupAndFillCache(0x00FFFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    cs[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
-    l1c_ptr_c2->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    cs[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
     cs[0]->tick();
     cs[1]->tick();
     
@@ -102,19 +102,17 @@ int main(int argc, const char * argv[])
         cs[1]->tick();
     }
     
-    r = l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
+    r = cs[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
     std::cout << "Request status:" << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
     
-    std::cout << "-------Core 1 caches begin -------" << std::endl;
-    cs[0]->printContents();
-    std::cout << "-------Core 1 caches end -------" << std::endl;
-    std::cout << "-------Core 2 caches begin -------" << std::endl;
-    cs[1]->printContents();
-    std::cout << "-------Core 2 caches end ---------" << std::endl;
+    r = cs[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    std::cout << "Request status: " << r << std::endl;
+    cs[0]->tick();
+    cs[1]->tick();
     
-    r = l1c_ptr_c1->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    r = cs[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
     std::cout << "Request status: " << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
@@ -126,7 +124,24 @@ int main(int argc, const char * argv[])
     cs[1]->printContents();
     std::cout << "-------Core 2 caches end ---------" << std::endl;
     
-    r = l1c_ptr_c2->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
+    r = cs[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    std::cout << "Request status: " << r << std::endl;
+    cs[0]->tick();
+    cs[1]->tick();
+    
+    std::cout << "-------Core 1 caches begin -------" << std::endl;
+    cs[0]->printContents();
+    std::cout << "-------Core 1 caches end -------" << std::endl;
+    std::cout << "-------Core 2 caches begin -------" << std::endl;
+    cs[1]->printContents();
+    std::cout << "-------Core 2 caches end ---------" << std::endl;
+    
+    r = cs[1]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
+    std::cout << "Request status: " << r << std::endl;
+    cs[0]->tick();
+    cs[1]->tick();
+    
+    r = cs[1]->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
     std::cout << "Request status: " << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
