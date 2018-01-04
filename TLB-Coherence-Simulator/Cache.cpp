@@ -52,7 +52,6 @@ void Cache::invalidate(const uint64_t addr, bool is_translation)
     std::vector<CacheLine>& set = m_tagStore[index];
     
     //If we find line in the cache, invalidate the line
-    //std::cout << "Back invalidate[Cache: " << m_cache_level << "]: 0x" << std::hex << std::noshowbase << std::setw(16) << std::setfill('0') << addr <<  std::endl ;
     
     if(is_found(set, tag, is_translation, hit_pos))
     {
@@ -172,7 +171,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             m_repl->updateReplState(index, hit_pos);
         }
         
-        //TODO:: Have some kind of callback here to retire memory instruction from ROB
+        //TODO:: Have some kind of callback here to mark memory instruction in ROB as done!
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
@@ -388,7 +387,6 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                //std::cout << "[" << m_cache_level << "] Coherence update from " << m_cache_sys->m_core_id << " to " << m_cache_sys->m_other_cache_sys[i]->m_core_id << " for addr " << std::hex << addr << std::endl;
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(addr, coh_action));
             }
         }
@@ -408,7 +406,6 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_DATA_WRITE || coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
-                    //std::cout << "Invalidating " << std::hex << "for addr " << addr << ", tag " << tag << " on core " << m_cache_sys->m_core_id << " on cache " << m_cache_level << std::endl;
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
