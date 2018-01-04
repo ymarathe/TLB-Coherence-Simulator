@@ -7,6 +7,7 @@
 //
 
 #include "Core.hpp"
+#include "CacheSys.hpp"
 
 class Core {
 private:
