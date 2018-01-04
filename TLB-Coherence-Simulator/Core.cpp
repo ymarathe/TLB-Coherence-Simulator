@@ -9,5 +9,5 @@
 #include "Core.hpp"
 
 class Core {
-    
+private:
 };

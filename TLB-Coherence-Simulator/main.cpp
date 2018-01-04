@@ -117,24 +117,10 @@ int main(int argc, const char * argv[])
     cs[0]->tick();
     cs[1]->tick();
     
-    std::cout << "-------Core 1 caches begin -------" << std::endl;
-    cs[0]->printContents();
-    std::cout << "-------Core 1 caches end -------" << std::endl;
-    std::cout << "-------Core 2 caches begin -------" << std::endl;
-    cs[1]->printContents();
-    std::cout << "-------Core 2 caches end ---------" << std::endl;
-    
     r = cs[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
     std::cout << "Request status: " << r << std::endl;
     cs[0]->tick();
     cs[1]->tick();
-    
-    std::cout << "-------Core 1 caches begin -------" << std::endl;
-    cs[0]->printContents();
-    std::cout << "-------Core 1 caches end -------" << std::endl;
-    std::cout << "-------Core 2 caches begin -------" << std::endl;
-    cs[1]->printContents();
-    std::cout << "-------Core 2 caches end ---------" << std::endl;
     
     r = cs[1]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
     std::cout << "Request status: " << r << std::endl;
@@ -146,10 +132,9 @@ int main(int argc, const char * argv[])
     cs[0]->tick();
     cs[1]->tick();
     
-    std::cout << "-------Core 1 caches begin -------" << std::endl;
+    std::cout << "---------------Core 1 cache---------------" << std::endl;
     cs[0]->printContents();
-    std::cout << "-------Core 1 caches end -------" << std::endl;
-    std::cout << "-------Core 2 caches begin -------" << std::endl;
+    std::cout << "--------------Core 1 cache end------------" << std::endl;
+    std::cout << "---------------Core 2 cache---------------" << std::endl;
     cs[1]->printContents();
-    std::cout << "-------Core 2 caches end ---------" << std::endl;
-}
+    std::cout << "--------------Core 2 cache end------------" << std::endl;}

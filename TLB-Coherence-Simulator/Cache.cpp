@@ -337,6 +337,8 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
             it->second->m_line->lock = false;
         }
         
+        delete(it->second);
+        
         m_mshr_entries.erase(it);
         
         //Ensure erasure in the MSHR
