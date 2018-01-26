@@ -250,6 +250,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         return REQUEST_RETRY;
     }
     
+    //TODO: YMARATHE: Review this again.
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
@@ -358,22 +359,7 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
         m_core->m_rob.mem_mark_done(r->m_addr, r->m_type);
     }
     
-    try
-    {
-        //TODO: YMARATHE: higher cache for translation - only structures!
-        for(int i = 0; i < m_higher_caches.size(); i++)
-        {
-            auto higher_cache = m_higher_caches[i].lock();
-            if(higher_cache != nullptr)
-            {
-                higher_cache->release_lock(r);
-            }
-        }
-    }
-    catch(std::bad_weak_ptr &e)
-    {
-        std::cout << e.what() << std::endl;
-    }
+    higher_caches_release_lock(r);
 }
 
 unsigned int Cache::get_latency_cycles()
@@ -449,6 +435,7 @@ std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_tr
 {
     std::shared_ptr<Cache> lower_cache;
     
+    //Check if lower cache is statically determined
     try
     {
         lower_cache = m_lower_cache.lock();
@@ -458,13 +445,36 @@ std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_tr
         std::cout << "Cache " << m_cache_level << "doesn't have a valid lower cache" << std::endl;
     }
     
+    //Determine lower_cache dynamically based on the type of transaction
     if(lower_cache == nullptr)
     {
-        //Can only happen with last level cache or translation structures
-        assert(m_cache_sys->is_last_level(m_cache_level) || m_cache_type == TRANSLATION_ONLY);
         lower_cache = m_core->get_lower_cache(addr, is_translation, m_cache_level, m_cache_type);
     }
     
     return lower_cache;
+}
+
+void Cache::higher_caches_release_lock(std::unique_ptr<Request> &r)
+{
+    try
+    {
+        for(int i = 0; i < m_higher_caches.size(); i++)
+        {
+            auto higher_cache = m_higher_caches[i].lock();
+            if(higher_cache != nullptr)
+            {
+                //Do this only for appropriate cache type
+                if((r->is_translation_request() && higher_cache->get_cache_type() != DATA_ONLY) || \
+                   (!r->is_translation_request() && higher_cache->get_cache_type() != TRANSLATION_ONLY))
+                {
+                    higher_cache->release_lock(r);
+                }
+            }
+        }
+    }
+    catch(std::bad_weak_ptr &e)
+    {
+        std::cout << e.what() << std::endl;
+    }
 }
     

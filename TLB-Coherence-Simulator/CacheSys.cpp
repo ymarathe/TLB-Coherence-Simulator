@@ -12,21 +12,35 @@
 void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
 {
     //Add higher caches
-    if(cache->get_cache_type() != TRANSLATION_ONLY)
+    assert (cache->get_cache_type() != TRANSLATION_ONLY && !is_translation_hier);
+    assert (cache->get_cache_type() == TRANSLATION_ONLY && is_translation_hier);
+    
+    if(!is_translation_hier)
     {
         if(m_caches.size() > 0)
         {
             cache->add_higher_cache(m_caches[m_caches.size() - 1]);
         }
 
-        //Determine level if not a TRANSLATION_ONLY structure
-       
         cache->set_level(int(m_caches.size() + 1));
      
         //Add lower cache for the previous last level cache
         if(m_caches.size() > 0)
         {
             m_caches[m_caches.size() - 1]->add_lower_cache(cache);
+        }
+    }
+    else
+    {
+        unsigned long cur_size = m_caches.size();
+        
+        if(cur_size == 0)
+        {
+            cache->set_level(1);
+        }
+        else
+        {
+            cache->set_level((unsigned int)(cur_size + 1)/2 + 1);
         }
     }
     
@@ -114,7 +128,22 @@ void CacheSys::tick()
 
 bool CacheSys::is_last_level(unsigned int cache_level)
 {
+    if(is_translation_hier)
+    {
+        return (cache_level == ((m_caches.size()/2) + 1));
+    }
+    
     return (cache_level == m_caches.size());
+}
+
+bool CacheSys::is_penultimate_level(unsigned int cache_level)
+{
+    if(is_translation_hier)
+    {
+        return (cache_level == (m_caches.size()/2));
+    }
+    
+    return (cache_level == m_caches.size()  - 1);
 }
 
 void CacheSys::printContents()
@@ -144,5 +173,10 @@ void CacheSys::set_core(Core *coreptr)
     {
         m_caches[i]->set_core(coreptr);
     }
+}
+
+bool CacheSys::get_hier_type()
+{
+    return is_translation_hier;
 }
 

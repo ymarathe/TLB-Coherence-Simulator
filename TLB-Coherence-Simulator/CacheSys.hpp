@@ -56,6 +56,8 @@ public:
     
     Core *m_core;
     
+    bool is_translation_hier;
+    
     CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
     m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
     {
@@ -72,11 +74,15 @@ public:
     
     bool is_last_level(unsigned int cache_level);
     
+    bool is_penultimate_level(unsigned int cache_level);
+    
     void printContents();
     
     void set_core_id(int core_id);
     
     RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
+    
+    bool get_hier_type();
     
 };
 

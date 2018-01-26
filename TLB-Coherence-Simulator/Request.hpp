@@ -34,6 +34,8 @@ public:
     Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id) :
     Request(addr, type, callback, core_id, 0) {}
     
+    bool is_translation_request();
+    
     friend std::ostream& operator << (std::ostream &out, const Request &r)
     {
         out << "Addr: " << r.m_addr << ", kind: " << r.m_type << ", core : " << r.m_core_id << std::endl;

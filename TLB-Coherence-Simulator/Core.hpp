@@ -44,7 +44,13 @@ public:
         m_tlb_hier(tlb_hier),
         m_rob(rob),
         m_l3_small_tlb_base(l3_small_tlb_base),
-        m_l3_small_tlb_size(l3_small_tlb_size) {}
+        m_l3_small_tlb_size(l3_small_tlb_size)
+        {
+            assert(!cache_hier->get_hier_type());
+            assert(tlb_hier->get_hier_type());
+        }
+    
+    void interfaceHier();
     
     uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large);
     

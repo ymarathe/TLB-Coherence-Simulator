@@ -124,5 +124,6 @@ public:
     CacheType get_cache_type();
     void set_core(Core *coreptr);
     std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation);
+    void higher_caches_release_lock(std::unique_ptr<Request> &r);
 };
 #endif /* Cache_hpp */
