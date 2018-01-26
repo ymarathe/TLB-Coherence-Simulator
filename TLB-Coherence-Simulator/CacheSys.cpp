@@ -18,7 +18,7 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
         {
             cache->add_higher_cache(m_caches[m_caches.size() - 1]);
         }
-    
+
         //Determine level if not a TRANSLATION_ONLY structure
        
         cache->set_level(int(m_caches.size() + 1));
@@ -29,11 +29,6 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
             m_caches[m_caches.size() - 1]->add_lower_cache(cache);
         }
     }
-    else
-    {
-        cache->add_higher_cache(std::weak_ptr<Cache>());
-    }
-    
     
     //Point current cache lower_cache to nullptr
     cache->add_lower_cache(std::weak_ptr<Cache>());

@@ -14,15 +14,16 @@
 #include "utils.hpp"
 
 class ROB {
-private:
+public:
     class ROBEntry {
     public:
         bool is_memory_access;
         kind txn_kind;
         uint64_t addr;
         bool done;
+        uint64_t clk;
         
-        ROBEntry() : is_memory_access(false), txn_kind(INVALID_TXN_KIND), addr(0), done(false) {}
+        ROBEntry() : is_memory_access(false), txn_kind(INVALID_TXN_KIND), addr(0), done(false), clk(0) {}
     };
     
     std::vector<ROBEntry> m_window;
@@ -32,8 +33,6 @@ private:
     unsigned int m_commit_ptr = 0;
     unsigned int m_num_waiting_instr = 0;
     unsigned int m_window_size = 128;
-    
-public:
     
     ROB(unsigned int window_size = 128, unsigned int issue_width = 4, unsigned int retire_width = 4) : m_window_size(window_size),
         m_issue_width(issue_width),
@@ -49,9 +48,9 @@ public:
         m_num_waiting_instr = 0;
     }
     
-    bool issue(bool is_memory_access, uint64_t addr, kind txn_kind);
-    unsigned int retire();
-    void mark_done(uint64_t addr, kind txn_kind);
+    bool issue(bool is_memory_access, uint64_t addr, kind txn_kind, uint64_t clk);
+    unsigned int retire(uint64_t clk);
+    void mem_mark_done(uint64_t addr, kind txn_kind);
 };
 
 #endif /* ROB_hpp */

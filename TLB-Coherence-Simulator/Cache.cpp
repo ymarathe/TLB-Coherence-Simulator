@@ -163,7 +163,6 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             m_repl->updateReplState(index, hit_pos);
         }
         
-        //TODO:: Have some kind of callback here to mark memory instruction in ROB as done!
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
@@ -249,7 +248,6 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         //MSHR full
         return REQUEST_RETRY;
     }
-
     
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
@@ -358,6 +356,12 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
             {
                 higher_cache->release_lock(r);
             }
+        }
+        
+        //We are in L1
+        if(m_higher_caches.size() == 0 && m_cache_type == DATA_ONLY)
+        {
+            m_core->m_rob.mem_mark_done(r->m_addr, r->m_type);
         }
     }
     catch(std::bad_weak_ptr &e)

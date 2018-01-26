@@ -8,7 +8,7 @@
 
 #include "ROB.hpp"
 
-bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind)
+bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind, uint64_t clk)
 {
     //Could not issue
     if(m_num_waiting_instr >= m_window_size)
@@ -19,6 +19,7 @@ bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind)
     m_window[m_issue_ptr].addr = addr;
     m_window[m_issue_ptr].txn_kind = txn_kind;
     m_window[m_issue_ptr].is_memory_access = is_memory_access;
+    m_window[m_issue_ptr].clk = clk;
     
     m_issue_ptr = (m_issue_ptr + 1) % m_window_size;
     m_num_waiting_instr++;
@@ -26,11 +27,11 @@ bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind)
     return true;
 }
 
-unsigned int ROB::retire()
+unsigned int ROB::retire(uint64_t clk)
 {
     unsigned int num_retired = 0;
     
-    while((m_window[m_commit_ptr].done) && (num_retired < m_retire_width))
+    while(((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
     {
         //Advance commit ptr
         m_commit_ptr = (m_commit_ptr + 1) % m_window_size;
@@ -41,7 +42,7 @@ unsigned int ROB::retire()
     return num_retired;
 }
 
-void ROB::mark_done(uint64_t addr, kind txn_kind)
+void ROB::mem_mark_done(uint64_t addr, kind txn_kind)
 {
     for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end(); it++)
     {

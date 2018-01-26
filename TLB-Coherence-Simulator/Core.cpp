@@ -70,3 +70,17 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     return nullptr;
 }
 
+void Core::tick()
+{
+    m_tlb_hier->tick();
+    m_cache_hier->tick();
+    
+    m_num_retired += m_rob.retire(m_clk);
+    
+    for(int i = 0; i < m_rob.m_issue_width; i++)
+    {
+        //Pull stuff out the trace and place it in ROB
+    }
+    
+    m_clk++;
+}
