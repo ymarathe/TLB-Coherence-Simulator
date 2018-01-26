@@ -49,8 +49,9 @@ public:
         m_num_waiting_instr = 0;
     }
     
-    bool issue(bool is_memory_access, kind txn_kind, uint64_t addr);
+    bool issue(bool is_memory_access, uint64_t addr, kind txn_kind);
     unsigned int retire();
+    void mark_done(uint64_t addr, kind txn_kind);
 };
 
 #endif /* ROB_hpp */

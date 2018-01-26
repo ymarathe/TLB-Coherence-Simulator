@@ -8,13 +8,14 @@
 
 #include "ROB.hpp"
 
-bool ROB::issue(bool is_memory_access, kind txn_kind, uint64_t addr)
+bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind)
 {
     //Could not issue
     if(m_num_waiting_instr >= m_window_size)
         return false;
     
     //Can issue
+    m_window[m_issue_ptr].done = false;
     m_window[m_issue_ptr].addr = addr;
     m_window[m_issue_ptr].txn_kind = txn_kind;
     m_window[m_issue_ptr].is_memory_access = is_memory_access;
@@ -38,4 +39,16 @@ unsigned int ROB::retire()
     }
     
     return num_retired;
+}
+
+void ROB::mark_done(uint64_t addr, kind txn_kind)
+{
+    for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end(); it++)
+    {
+        if((it->addr == addr) && (it->txn_kind == txn_kind))
+        {
+            it->done = true;
+            break;
+        }
+    }
 }

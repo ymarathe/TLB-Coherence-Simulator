@@ -12,6 +12,7 @@
 #include <vector>
 #include <iomanip>
 #include "utils.hpp"
+#include "Core.hpp"
 
 uint64_t Cache::get_line_offset(const uint64_t addr)
 {
@@ -105,24 +106,15 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     //Send writeback if dirty
     //If not, due to inclusiveness, lower caches still have data
     //So do runtime check to ensure hit (and inclusiveness)
-    std::shared_ptr<Cache> lower_cache;
-    
-    try
-    {
-        lower_cache = m_lower_cache.lock();
-    }
-    catch(std::bad_weak_ptr &e)
-    {
-        std::cout << "Cache " << m_cache_level << "doesn't have a valid lower cache" << std::endl;
-    }
+    std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(evict_addr, line.is_translation);
     
     if(line.dirty)
     {
         if(lower_cache != nullptr)
         {
             RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
-            //On eviction, force coherence state to be invalid.
             line.m_coherence_prot->forceCoherenceState(INVALID);
+            
             if(m_inclusive)
             {
                 assert((val == REQUEST_HIT) || (val == MSHR_HIT_AND_LOCKED));
@@ -257,14 +249,14 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
     
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
-        try
+        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
+        if(lower_cache != nullptr)
         {
-            auto lower_cache = m_lower_cache.lock();
+            CacheType lower_cache_type = lower_cache->get_cache_type();
+            bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
+            //TODO: YMARATHE: Add correct thread ID and is_large flag here
+            addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, 0, 0): addr;
             lower_cache->lookupAndFillCache(addr, txn_kind);
-        }
-        catch(std::bad_weak_ptr &e)
-        {
-            std::cout << e.what() << std::endl;
         }
     }
     else
@@ -415,3 +407,42 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         }
     }
 }
+
+void Cache::set_cache_type(CacheType cache_type)
+{
+    m_cache_type = cache_type;
+}
+
+CacheType Cache::get_cache_type()
+{
+    return m_cache_type;
+}
+
+void Cache::set_core(Core *coreptr)
+{
+    m_core = coreptr;
+}
+
+std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_translation)
+{
+    std::shared_ptr<Cache> lower_cache;
+    
+    try
+    {
+        lower_cache = m_lower_cache.lock();
+    }
+    catch(std::bad_weak_ptr &e)
+    {
+        std::cout << "Cache " << m_cache_level << "doesn't have a valid lower cache" << std::endl;
+    }
+    
+    if(lower_cache == nullptr)
+    {
+        //Can only happen with last level cache or translation structures
+        assert(m_cache_sys->is_last_level(m_cache_level) || m_cache_type == TRANSLATION_ONLY);
+        lower_cache = m_core->get_lower_cache(addr, is_translation, m_cache_level, m_cache_type);
+    }
+    
+    return lower_cache;
+}
+    

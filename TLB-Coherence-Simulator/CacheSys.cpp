@@ -12,29 +12,35 @@
 void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
 {
     //Add higher caches
-    if(m_caches.size() > 0)
+    if(cache->get_cache_type() != TRANSLATION_ONLY)
     {
-        cache->add_higher_cache(m_caches[m_caches.size() - 1]);
+        if(m_caches.size() > 0)
+        {
+            cache->add_higher_cache(m_caches[m_caches.size() - 1]);
+        }
+    
+        //Determine level if not a TRANSLATION_ONLY structure
+       
+        cache->set_level(int(m_caches.size() + 1));
+     
+        //Add lower cache for the previous last level cache
+        if(m_caches.size() > 0)
+        {
+            m_caches[m_caches.size() - 1]->add_lower_cache(cache);
+        }
     }
     else
     {
         cache->add_higher_cache(std::weak_ptr<Cache>());
     }
     
-    //Determine level
-    cache->set_level(int(m_caches.size() + 1));
-   
-    //Add lower cache for the previous last level cache
-    if(m_caches.size() > 0)
-    {
-        m_caches[m_caches.size() - 1]->add_lower_cache(cache);
-    }
     
     //Point current cache lower_cache to nullptr
     cache->add_lower_cache(std::weak_ptr<Cache>());
     
     //Set cache sys pointer
     cache->set_cache_sys(this);
+    cache->set_core(m_core);
     
     m_caches.push_back(cache);
 
@@ -134,3 +140,14 @@ RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind)
 {
     return m_caches[0]->lookupAndFillCache(addr, txn_kind);
 }
+
+void CacheSys::set_core(Core *coreptr)
+{
+    m_core = coreptr;
+    
+    for(int i = 0; i < m_caches.size(); i++)
+    {
+        m_caches[i]->set_core(coreptr);
+    }
+}
+

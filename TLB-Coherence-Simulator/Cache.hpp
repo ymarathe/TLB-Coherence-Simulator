@@ -19,6 +19,7 @@
 #include "Coherence.hpp"
 
 class CacheSys;
+class Core;
 
 class Cache
 {
@@ -47,6 +48,8 @@ private:
     
     CacheSys *m_cache_sys;
     
+    Core* m_core;
+    
     //std::map<uint64_t, CacheLine*> m_mshr_entries;
     std::map<uint64_t, MSHREntry*> m_mshr_entries;
     
@@ -59,8 +62,10 @@ private:
     
     bool m_inclusive;
     
+    CacheType m_cache_type;
+    
 public:
-    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
+    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false, CacheType cache_type = DATA_ONLY):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
     {
         
@@ -94,7 +99,8 @@ public:
         m_is_coherence_enabled = (prot != NO_COHERENCE);
         
         m_inclusive = inclusive;
-
+        
+        m_cache_type = cache_type;
     }
     
     uint64_t get_index(const uint64_t addr);
@@ -114,5 +120,9 @@ public:
     void set_cache_sys(CacheSys *cache_sys);
     unsigned int get_latency_cycles();
     void handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys);
+    void set_cache_type(CacheType cache_type);
+    CacheType get_cache_type();
+    void set_core(Core *coreptr);
+    std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation);
 };
 #endif /* Cache_hpp */

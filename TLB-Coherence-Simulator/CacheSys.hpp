@@ -16,6 +16,7 @@
 #include "Request.hpp"
 
 class Cache;
+class Core;
 
 enum {
     L1_HIT_ID,
@@ -53,6 +54,8 @@ public:
     
     int m_core_id;
     
+    Core *m_core;
+    
     CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
     m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
     {
@@ -63,10 +66,12 @@ public:
     
     void add_cachesys(std::shared_ptr<CacheSys> cs);
     
+    void set_core(Core* coreptr);
+    
     void tick();
     
     bool is_last_level(unsigned int cache_level);
-
+    
     void printContents();
     
     void set_core_id(int core_id);

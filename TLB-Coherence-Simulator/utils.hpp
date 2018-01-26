@@ -19,6 +19,7 @@
 unsigned int log2(unsigned int num);
 
 typedef enum {
+    NO_REQUEST,
     REQUEST_HIT,
     REQUEST_MISS,
     REQUEST_RETRY,
@@ -58,6 +59,13 @@ typedef enum {
     DIRECTORY_TRANSLATION_READ,
 } kind;
 
+typedef enum {
+    DATA_ONLY,
+    TRANSLATION_ONLY,
+    DATA_AND_TRANSLATION,
+} CacheType;
+
 kind txnKindForCohAction(CoherenceAction coh_action);
+
 
 #endif /* utils_hpp */
