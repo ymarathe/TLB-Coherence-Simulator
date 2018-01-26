@@ -46,8 +46,8 @@ public:
         m_l3_small_tlb_base(l3_small_tlb_base),
         m_l3_small_tlb_size(l3_small_tlb_size)
         {
-            assert(!cache_hier->get_hier_type());
-            assert(tlb_hier->get_hier_type());
+            assert(!cache_hier->get_is_translation_hier());
+            assert(tlb_hier->get_is_translation_hier());
         }
     
     void interfaceHier();

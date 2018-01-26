@@ -175,7 +175,7 @@ void CacheSys::set_core(Core *coreptr)
     }
 }
 
-bool CacheSys::get_hier_type()
+bool CacheSys::get_is_translation_hier()
 {
     return is_translation_hier;
 }

@@ -82,7 +82,7 @@ public:
     
     RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
     
-    bool get_hier_type();
+    bool get_is_translation_hier();
     
 };
 

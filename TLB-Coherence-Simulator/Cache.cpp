@@ -88,7 +88,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     {
         try
         {
-            //TODO: YMARATHE: higher cache for translation structures
+            //No harm in blindly invalidating, since is_found checks is_translation.
             for(int i = 0; i < m_higher_caches.size(); i++)
             {
                 auto higher_cache = m_higher_caches[i].lock();
@@ -140,7 +140,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     }
 }
 
-RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
+RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t tid, bool is_large)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
@@ -165,7 +165,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         }
         
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback, tid, is_large));
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
         
         //Coherence handling
@@ -250,7 +250,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         return REQUEST_RETRY;
     }
     
-    //TODO: YMARATHE: Review this again.
+    //We are in upper levels of TLB/cache and we aren't doing writeback.
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
@@ -263,7 +263,18 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             lower_cache->lookupAndFillCache(access_addr, txn_kind);
         }
     }
-    else if(m_cache_sys->is_last_level(m_cache_level) && is_translation)
+    //We are in last level of cache hier and handling a data entry
+    //We are in last level of TLB hier and handling a TLB entry
+    else if((m_cache_sys->is_last_level(m_cache_level) && !is_translation && !m_cache_sys->get_is_translation_hier()) || \
+            (m_cache_sys->is_last_level(m_cache_level) && is_translation && (m_cache_sys->get_is_translation_hier())))
+    {
+        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
+        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback, tid, is_large));
+        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
+    }
+    //We are in last level of cache hier and translation entry.
+    else
     {
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
         if(lower_cache != nullptr)
@@ -271,13 +282,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             lower_cache->lookupAndFillCache(addr, txn_kind);
         }
     }
-    else if(m_cache_sys->is_last_level(m_cache_level) && ((txn_kind == DATA_READ) || (txn_kind == DATA_WRITE)))
-    {
-        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
-        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback));
-        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
-    }
+ 
     
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
 
@@ -330,9 +335,6 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
-    //TODO: YMARATHE: Handle the address translation boundary
-    //Maybe we have to do it for a different address here.
-    //Not r->m_addr.
     auto it = m_mshr_entries.find(r->m_addr);
     
     if(it != m_mshr_entries.end())
@@ -375,6 +377,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         //Writeback should be from the cache line in question?
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         kind coh_txn_kind = txnKindForCohAction(coh_action);
+        //TODO: YMARATHE: make request with TID here
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
@@ -464,9 +467,14 @@ void Cache::higher_caches_release_lock(std::unique_ptr<Request> &r)
             if(higher_cache != nullptr)
             {
                 //Do this only for appropriate cache type
+                //No harm in calling release_lock in both small and large.
+                //Worst case, no MSHR hit.
                 if((r->is_translation_request() && higher_cache->get_cache_type() != DATA_ONLY) || \
                    (!r->is_translation_request() && higher_cache->get_cache_type() != TRANSLATION_ONLY))
                 {
+                    
+                    bool is_dat_to_tr_boundary = (m_cache_type == DATA_AND_TRANSLATION) && (higher_cache->get_cache_type() == TRANSLATION_ONLY);
+                    r->m_addr = (is_dat_to_tr_boundary) ? m_core->retrieveActualAddr(r->m_addr, r->m_tid, r->m_is_large) : r->m_addr;
                     higher_cache->release_lock(r);
                 }
             }

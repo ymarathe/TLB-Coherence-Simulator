@@ -76,13 +76,15 @@ uint64_t Core::retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_larg
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
     assert(iter != va2L3TLBAddr.end());
+    uint64_t returnval = -1;
     
     if(pid == iter->second.m_pid && pid == iter->second.m_is_large)
     {
-        return iter->second.m_addr;
+        returnval = iter->second.m_addr;
+        va2L3TLBAddr.erase(iter);
     }
     
-    return (-1);
+    return returnval;
 }
 
 std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation, unsigned int level, CacheType cache_type)

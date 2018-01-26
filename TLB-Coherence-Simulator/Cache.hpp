@@ -110,7 +110,7 @@ public:
     bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, unsigned int &hit_pos);
     void invalidate(const uint64_t addr, bool is_translation);
     void evict(uint64_t set_num, const CacheLine &line);
-    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
+    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);
