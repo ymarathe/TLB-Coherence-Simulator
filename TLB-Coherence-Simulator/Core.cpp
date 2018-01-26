@@ -40,6 +40,8 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     bool is_last_level_tlb = (level == num_tlbs) || (level == (num_tlbs - 1));
     bool is_penultimate_tlb = (level == (num_tlbs - 2)) || (level == (num_tlbs - 3));
     
+    //If line is not translation entry and we are in lowest level cache, return nullptr
+    //If we are in last level TLB, return nullptr
     if((!is_translation && m_cache_hier->is_last_level(level)) || is_last_level_tlb)
     {
         return nullptr;

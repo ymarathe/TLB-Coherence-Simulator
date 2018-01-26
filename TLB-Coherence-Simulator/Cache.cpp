@@ -196,19 +196,23 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         m_repl->updateReplState(index, insert_pos);
     }
     
+    
     auto mshr_iter = m_mshr_entries.find(addr);
+    
+    //Blocking for TLB access.
+    unsigned int mshr_size = (m_cache_type != TRANSLATION_ONLY) ? 16 : 1;
     if(mshr_iter != m_mshr_entries.end())
     {
         //MSHR hit
         if(((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK)) && \
-            (get_tag(addr) == mshr_iter->second->m_line->tag) && \
-            (is_translation == mshr_iter->second->m_line->is_translation))
+                (get_tag(addr) == mshr_iter->second->m_line->tag) && \
+                (is_translation == mshr_iter->second->m_line->is_translation))
         {
-                mshr_iter->second->m_line->dirty = true;
+            mshr_iter->second->m_line->dirty = true;
         }
         
         if(get_tag(addr) == mshr_iter->second->m_line->tag && \
-           (is_translation == mshr_iter->second->m_line->is_translation))
+            (is_translation == mshr_iter->second->m_line->is_translation))
         {
             CoherenceAction coh_action = mshr_iter->second->m_line->m_coherence_prot->setNextCoherenceState(txn_kind);
             
@@ -216,7 +220,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
         
             uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
-        
+            
             handle_coherence_action(coh_action, coh_addr, true);
         }
         
@@ -230,7 +234,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             return MSHR_HIT;
         }
     }
-    else if(m_mshr_entries.size() < 16)
+    else if(m_mshr_entries.size() < mshr_size)
     {
         //MSHR miss, add entry
         line.valid = true;
@@ -246,6 +250,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         //MSHR full
         return REQUEST_RETRY;
     }
+
     
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
