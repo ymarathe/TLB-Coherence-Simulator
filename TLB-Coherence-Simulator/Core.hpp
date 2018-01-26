@@ -15,6 +15,16 @@
 
 class Core {
 private:
+    
+    class AddrMapKey {
+    public:
+        uint64_t m_addr;
+        uint64_t m_pid;
+        bool m_is_large;
+        
+        AddrMapKey(uint64_t addr, uint64_t pid, bool is_large) : m_addr(addr), m_pid(pid), m_is_large(is_large) {}
+    };
+    
     std::shared_ptr<CacheSys> m_cache_hier;
     std::shared_ptr<CacheSys> m_tlb_hier;
     uint64_t m_l3_small_tlb_base = 0x0;
@@ -24,6 +34,8 @@ private:
     //Stats
     uint64_t m_num_issued  = 0;
     uint64_t m_num_retired = 0;
+    
+    std::map<uint64_t, AddrMapKey> va2L3TLBAddr;
     
 public:
     ROB m_rob;
@@ -35,6 +47,8 @@ public:
         m_l3_small_tlb_size(l3_small_tlb_size) {}
     
     uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large);
+    
+    uint64_t retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large);
     
     std::shared_ptr<Cache> get_lower_cache(uint64_t addr, bool is_translation, unsigned int cache_level, CacheType cache_type);
     

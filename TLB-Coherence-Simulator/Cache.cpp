@@ -88,6 +88,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     {
         try
         {
+            //TODO: YMARATHE: higher cache for translation structures
             for(int i = 0; i < m_higher_caches.size(); i++)
             {
                 auto higher_cache = m_higher_caches[i].lock();
@@ -328,12 +329,16 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
+    //TODO: YMARATHE: Handle the address translation boundary
+    //Maybe we have to do it for a different address here.
+    //Not r->m_addr.
     auto it = m_mshr_entries.find(r->m_addr);
     
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
         //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
+        
         if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
             it->second->m_line->lock = false;
@@ -347,8 +352,15 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
         assert(m_mshr_entries.find(r->m_addr) == m_mshr_entries.end());
     }
     
+    //We are in L1
+    if(m_cache_level == 1 && m_cache_type == DATA_ONLY)
+    {
+        m_core->m_rob.mem_mark_done(r->m_addr, r->m_type);
+    }
+    
     try
     {
+        //TODO: YMARATHE: higher cache for translation - only structures!
         for(int i = 0; i < m_higher_caches.size(); i++)
         {
             auto higher_cache = m_higher_caches[i].lock();
@@ -356,12 +368,6 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
             {
                 higher_cache->release_lock(r);
             }
-        }
-        
-        //We are in L1
-        if(m_higher_caches.size() == 0 && m_cache_type == DATA_ONLY)
-        {
-            m_core->m_rob.mem_mark_done(r->m_addr, r->m_type);
         }
     }
     catch(std::bad_weak_ptr &e)

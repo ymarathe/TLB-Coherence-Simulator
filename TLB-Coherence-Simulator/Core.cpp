@@ -31,7 +31,24 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
         l3_tlb_base_address = m_l3_small_tlb_base;
     }
     
-    return l3_tlb_base_address + (set_index * 16 * 4); // each set holds 4 entries of 16B each.
+    uint64_t l3tlbaddr = l3_tlb_base_address + (set_index * 16 * 4);
+    
+    va2L3TLBAddr.insert(std::make_pair(l3tlbaddr, AddrMapKey(va, pid, is_large)));
+    
+    return l3tlbaddr; // each set holds 4 entries of 16B each.
+}
+
+uint64_t Core::retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large)
+{
+    auto iter = va2L3TLBAddr.find(l3tlbaddr);
+    assert(iter != va2L3TLBAddr.end());
+    
+    if(pid == iter->second.m_pid && pid == iter->second.m_is_large)
+    {
+        return iter->second.m_addr;
+    }
+    
+    return (-1);
 }
 
 std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation, unsigned int level, CacheType cache_type)
@@ -48,7 +65,7 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     }
     
     //L1 TLB, return appropriate L2 TLB (small/large)
-    if(level == 0 && cache_type == TRANSLATION_ONLY && is_translation)
+    if(level == 1 && cache_type == TRANSLATION_ONLY && is_translation)
     {
         return (addr & 0x200000) ? m_tlb_hier->m_caches[level + 1] : m_tlb_hier->m_caches[level + 2];
     }
