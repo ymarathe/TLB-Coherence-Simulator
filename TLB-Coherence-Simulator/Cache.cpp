@@ -196,7 +196,6 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
         m_repl->updateReplState(index, insert_pos);
     }
     
-    
     auto mshr_iter = m_mshr_entries.find(addr);
     
     //Blocking for TLB access.
@@ -260,11 +259,19 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind)
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
             //TODO: YMARATHE: Add correct thread ID and is_large flag here
-            addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, 0, 0): addr;
+            uint64_t access_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, 0, 0): addr;
+            lower_cache->lookupAndFillCache(access_addr, txn_kind);
+        }
+    }
+    else if(m_cache_sys->is_last_level(m_cache_level) && is_translation)
+    {
+        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
+        if(lower_cache != nullptr)
+        {
             lower_cache->lookupAndFillCache(addr, txn_kind);
         }
     }
-    else
+    else if(m_cache_sys->is_last_level(m_cache_level) && ((txn_kind == DATA_READ) || (txn_kind == DATA_WRITE)))
     {
         //TODO:: YMARATHE. Move std::bind elsewhere, performance hit.
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
