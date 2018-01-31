@@ -172,7 +172,7 @@ RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind)
     return m_caches[0]->lookupAndFillCache(addr, txn_kind);
 }
 
-void CacheSys::set_core(Core *coreptr)
+void CacheSys::set_core(std::shared_ptr<Core>& coreptr)
 {
     m_core = coreptr;
     

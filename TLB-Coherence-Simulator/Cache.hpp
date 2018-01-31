@@ -48,7 +48,7 @@ private:
     
     CacheSys *m_cache_sys;
     
-    Core* m_core;
+    std::shared_ptr<Core> m_core;
     
     //std::map<uint64_t, CacheLine*> m_mshr_entries;
     std::map<uint64_t, MSHREntry*> m_mshr_entries;
@@ -122,7 +122,7 @@ public:
     void handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys);
     void set_cache_type(CacheType cache_type);
     CacheType get_cache_type();
-    void set_core(Core *coreptr);
+    void set_core(std::shared_ptr<Core>& coreptr);
     std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation, bool is_large = false);
     void higher_caches_release_lock(std::unique_ptr<Request> &r);
 };

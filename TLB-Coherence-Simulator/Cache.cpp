@@ -337,6 +337,8 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
 {
     auto it = m_mshr_entries.find(r->m_addr);
     
+    //std::cout << "Request at level::" << m_cache_level << ", Addr::" << std::hex << r->m_addr << std::endl;
+    
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
@@ -344,6 +346,7 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
         
         if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
+            //std::cout << "Found in MSHR::" << m_cache_level << ", changing lock bit, Addr::" << r->m_addr << std::endl;
             it->second->m_line->lock = false;
         }
         
@@ -429,7 +432,7 @@ CacheType Cache::get_cache_type()
     return m_cache_type;
 }
 
-void Cache::set_core(Core *coreptr)
+void Cache::set_core(std::shared_ptr<Core>& coreptr)
 {
     m_core = coreptr;
 }

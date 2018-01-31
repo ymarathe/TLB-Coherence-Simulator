@@ -9,6 +9,8 @@
 #include <iostream>
 #include "Cache.hpp"
 #include "CacheSys.hpp"
+#include "ROB.hpp"
+#include "Core.hpp"
 
 int main(int argc, const char * argv[])
 {
@@ -25,6 +27,8 @@ int main(int argc, const char * argv[])
     
     std::vector<std::shared_ptr<Cache>> l1_tlb;
     std::vector<std::shared_ptr<Cache>> l2_tlb;
+    
+    std::vector<ROB> rob_arr;
     
     std::vector<std::shared_ptr<Core>> cores;
     
@@ -51,7 +55,15 @@ int main(int argc, const char * argv[])
         tlb_hier[i]->add_cache_to_hier(l3_tlb_small);
         tlb_hier[i]->add_cache_to_hier(l3_tlb_large);
         
+        rob_arr.push_back(ROB());
+        
+        cores.push_back(std::make_shared<Core>(Core(data_hier[i], tlb_hier[i], rob_arr[i])));
+        
         data_hier[i]->set_core_id(i);
+        data_hier[i]->set_core(cores[i]);
+        tlb_hier[i]->set_core_id(i);
+        tlb_hier[i]->set_core(cores[i]);
+        
     }
     
     //Make cache hierarchies aware of each other
@@ -66,48 +78,60 @@ int main(int argc, const char * argv[])
         }
     }
     
-    data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_WRITE);
+    //Make TLB hierarchies aware of each other
+    for(int i = 0; i < NUM_CORES; i++)
+    {
+        for(int j = 0; j < NUM_CORES; j++)
+        {
+            if(i != j)
+            {
+                tlb_hier[i]->add_cachesys(tlb_hier[j]);
+            }
+        }
+    }
+    
+    data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[1]->lookupAndFillCache(0x7FFFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x3FFFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[0]->lookupAndFillCache(0x3FFFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x1FFFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[1]->lookupAndFillCache(0x1FFFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    RequestStatus r = data_hier[0]->lookupAndFillCache(0x0FFFFFFFFFC0, TRANSLATION_WRITE);
+    RequestStatus r = data_hier[0]->lookupAndFillCache(0x0FFFFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[0]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x01FFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[1]->lookupAndFillCache(0x01FFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x00FFFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[0]->lookupAndFillCache(0x00FFFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
@@ -118,35 +142,35 @@ int main(int argc, const char * argv[])
         data_hier[1]->tick();
     }
     
-    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
+    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_READ);
     std::cout << "Request status:" << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_READ);
+    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_READ);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, TRANSLATION_WRITE);
+    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x03FFFFFFFFC0, TRANSLATION_WRITE);
+    /*r = data_hier[1]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, TRANSLATION_WRITE);
+    r = data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
-    data_hier[1]->tick();
+    data_hier[1]->tick();*/
     
     std::cout << "---------------Core 1 cache---------------" << std::endl;
     data_hier[0]->printContents();

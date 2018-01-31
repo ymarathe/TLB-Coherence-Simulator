@@ -54,7 +54,7 @@ public:
     
     int m_core_id;
     
-    Core *m_core;
+    std::shared_ptr<Core> m_core;
     
     bool m_is_translation_hier;
     
@@ -68,7 +68,7 @@ public:
     
     void add_cachesys(std::shared_ptr<CacheSys> cs);
     
-    void set_core(Core* coreptr);
+    void set_core(std::shared_ptr<Core>& coreptr);
     
     void tick();
     
