@@ -40,7 +40,7 @@ public:
     std::map<uint64_t, std::unique_ptr<Request>> m_hit_list;
     
     //This is where coherence actions wait until they are served
-    std::map<uint64_t, CoherenceAction> m_coh_act_list;
+    std::map<std::unique_ptr<Request>, CoherenceAction> m_coh_act_list;
     
     uint64_t m_clk;
     
@@ -80,7 +80,7 @@ public:
     
     void set_core_id(int core_id);
     
-    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind);
+    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false);
     
     bool get_is_translation_hier();
     

@@ -17,8 +17,13 @@ int main(int argc, const char * argv[])
 #define NUM_CORES 2
     
     std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(4, 8, 64, 25,  DATA_AND_TRANSLATION));
+    
+    /*
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(16384, 4, 4096, 1, TRANSLATION_ONLY));
     std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(4096, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY));
+    */
+    std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(8, 8, 4096, 1, TRANSLATION_ONLY));
+    std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(8, 8, 2 * 1024 * 1024, 1, TRANSLATION_ONLY));
     
     std::vector<std::shared_ptr<CacheSys>> data_hier;
     std::vector<std::shared_ptr<CacheSys>> tlb_hier;
@@ -43,10 +48,14 @@ int main(int argc, const char * argv[])
         data_hier[i]->add_cache_to_hier(llc);
         
         tlb_hier.push_back(std::make_shared<CacheSys>(CacheSys(true)));
-        l1_tlb.push_back(std::make_shared<Cache>(Cache(16, 4, 4096, 1, TRANSLATION_ONLY)));
+        l1_tlb.push_back(std::make_shared<Cache>(Cache(2, 2, 4096, 1, TRANSLATION_ONLY)));
+        l1_tlb.push_back(std::make_shared<Cache>(Cache(1, 2, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(4, 4, 4096, 1, TRANSLATION_ONLY)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(4, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
+        /*l1_tlb.push_back(std::make_shared<Cache>(Cache(16, 4, 4096, 1, TRANSLATION_ONLY)));
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 1, TRANSLATION_ONLY)));
-        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));*/
         
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i]);
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i + 1]);
@@ -89,8 +98,13 @@ int main(int argc, const char * argv[])
             }
         }
     }
+    tlb_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_READ, 0, false);
+    tlb_hier[0]->tick();
+    tlb_hier[1]->tick();
+    data_hier[0]->tick();
+    data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
+    /*data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
@@ -162,7 +176,7 @@ int main(int argc, const char * argv[])
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    /*r = data_hier[1]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
+    r = data_hier[1]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
@@ -175,6 +189,13 @@ int main(int argc, const char * argv[])
     std::cout << "---------------Core 1 cache---------------" << std::endl;
     data_hier[0]->printContents();
     std::cout << "--------------Core 1 cache end------------" << std::endl;
-    std::cout << "---------------Core 2 cache---------------" << std::endl;
+    
+    /*std::cout << "---------------Core 2 cache---------------" << std::endl;
     data_hier[1]->printContents();
-    std::cout << "--------------Core 2 cache end------------" << std::endl;}
+    std::cout << "--------------Core 2 cache end------------" << std::endl;*/
+    
+    std::cout << "--------------Core 1 TLB------------------" << std::endl;
+    tlb_hier[0]->printContents();
+    std::cout << "-------------Core 1 TLB end-------------" << std::endl;
+    
+}

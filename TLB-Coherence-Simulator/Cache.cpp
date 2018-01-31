@@ -29,23 +29,23 @@ uint64_t Cache::get_tag(const uint64_t addr)
     return ((addr >> m_num_line_offset_bits) >> m_num_index_bits);
 }
 
-bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, unsigned int &hit_pos)
+bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, uint64_t tid, unsigned int &hit_pos)
 {
-    auto it = std::find_if(set.begin(), set.end(), [tag, is_translation, this](const CacheLine &l)
+    auto it = std::find_if(set.begin(), set.end(), [tag, is_translation, tid, this](const CacheLine &l)
                            {
-                               return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation));
+                               return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid));
                            });
     
     hit_pos = static_cast<unsigned int>(it - set.begin());
     return (it != set.end());
 }
 
-bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, unsigned int &hit_pos)
+bool Cache::is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, uint64_t tid, unsigned int &hit_pos)
 {
-    return is_found(set, tag, is_translation, hit_pos) & !set[hit_pos].lock;
+    return is_found(set, tag, is_translation, tid, hit_pos) & !set[hit_pos].lock;
 }
 
-void Cache::invalidate(const uint64_t addr, bool is_translation)
+void Cache::invalidate(const uint64_t addr, uint64_t tid, bool is_translation)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
@@ -54,7 +54,7 @@ void Cache::invalidate(const uint64_t addr, bool is_translation)
     
     //If we find line in the cache, invalidate the line
     
-    if(is_found(set, tag, is_translation, hit_pos))
+    if(is_found(set, tag, is_translation, tid, hit_pos))
     {
         set[hit_pos].valid = false;
     }
@@ -68,7 +68,7 @@ void Cache::invalidate(const uint64_t addr, bool is_translation)
             auto higher_cache = m_higher_caches[i].lock();
             if(higher_cache != nullptr)
             {
-                higher_cache->invalidate(addr, is_translation);
+                higher_cache->invalidate(addr, tid, is_translation);
             }
         }
     }
@@ -78,7 +78,7 @@ void Cache::invalidate(const uint64_t addr, bool is_translation)
     }
 }
 
-void Cache::evict(uint64_t set_num, const CacheLine &line, bool is_large)
+void Cache::evict(uint64_t set_num, const CacheLine &line)
 {
     //Send back invalidate
     
@@ -94,7 +94,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line, bool is_large)
                 auto higher_cache = m_higher_caches[i].lock();
                 if(higher_cache != nullptr)
                 {
-                    higher_cache->invalidate(evict_addr, line.is_translation);
+                    higher_cache->invalidate(evict_addr, line.tid, line.is_translation);
                 }
             }
         }
@@ -107,13 +107,13 @@ void Cache::evict(uint64_t set_num, const CacheLine &line, bool is_large)
     //Send writeback if dirty
     //If not, due to inclusiveness, lower caches still have data
     //So do runtime check to ensure hit (and inclusiveness)
-    std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(evict_addr, line.is_translation, is_large);
+    std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(evict_addr, line.is_translation, line.is_large);
     
     if(line.dirty)
     {
         if(lower_cache != nullptr)
         {
-            RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK);
+            RequestStatus val = lower_cache->lookupAndFillCache(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK, line.tid, line.is_large);
             line.m_coherence_prot->forceCoherenceState(INVALID);
             
             if(m_inclusive)
@@ -135,7 +135,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line, bool is_large)
             uint64_t index = lower_cache->get_index(evict_addr);
             uint64_t tag = lower_cache->get_index(evict_addr);
             std::vector<CacheLine> set = lower_cache->m_tagStore[index];
-            assert(lower_cache->is_found(set, tag, line.is_translation, hit_pos));
+            assert(lower_cache->is_found(set, tag, line.is_translation, line.tid, hit_pos));
         }
     }
 }
@@ -149,7 +149,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     
     bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
     
-    if(is_hit(set, tag, is_translation, hit_pos))
+    if(is_hit(set, tag, is_translation, tid, hit_pos))
     {
         CacheLine &line = set[hit_pos];
         
@@ -171,13 +171,13 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         //Coherence handling
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
         
-        handle_coherence_action(coh_action, addr, true);
+        handle_coherence_action(coh_action, addr, tid, is_large, true);
         
         return REQUEST_HIT;
     }
     
     auto it_not_valid = std::find_if(set.begin(), set.end(), [](const CacheLine &l) { return !l.valid; });
-    bool needs_eviction = (it_not_valid == set.end()) && (!is_found(set, tag, is_translation, hit_pos));
+    bool needs_eviction = (it_not_valid == set.end()) && (!is_found(set, tag, is_translation, tid, hit_pos));
   
     unsigned int insert_pos = m_repl->getVictim(set, index);
     
@@ -188,7 +188,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     //Evict the victim line if not locked and update replacement state
     if(needs_eviction)
     {
-        evict(index, line, is_large);
+        evict(index, line);
     }
     
     if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
@@ -220,7 +220,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         
             uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
             
-            handle_coherence_action(coh_action, coh_addr, true);
+            handle_coherence_action(coh_action, coh_addr, tid, is_large, true);
         }
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
@@ -240,6 +240,8 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         line.lock = true;
         line.tag = tag;
         line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
+        line.is_large = is_large;
+        line.tid = tid;
         line.dirty = (txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK);
         MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
         m_mshr_entries.insert(std::make_pair(addr, mshr_entry));
@@ -259,8 +261,8 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
             //TODO: YMARATHE: Add correct thread ID and is_large flag here
-            uint64_t access_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, 0, 0): addr;
-            lower_cache->lookupAndFillCache(access_addr, txn_kind);
+            uint64_t access_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, tid, is_large): addr;
+            lower_cache->lookupAndFillCache(access_addr, txn_kind, tid, is_large);
         }
     }
     //We are in last level of cache hier and handling a data entry
@@ -279,7 +281,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
         if(lower_cache != nullptr)
         {
-            lower_cache->lookupAndFillCache(addr, txn_kind);
+            lower_cache->lookupAndFillCache(addr, txn_kind, tid, is_large);
         }
     }
  
@@ -291,7 +293,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     
     uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
     
-    handle_coherence_action(coh_action, coh_addr, true);
+    handle_coherence_action(coh_action, coh_addr, tid, is_large, true);
     
     return REQUEST_MISS;
 }
@@ -372,7 +374,7 @@ unsigned int Cache::get_latency_cycles()
     return m_latency_cycles;
 }
 
-void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys)
+void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, uint64_t tid, bool is_large, bool same_cache_sys)
 {
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
@@ -380,8 +382,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         //Writeback should be from the cache line in question?
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         kind coh_txn_kind = txnKindForCohAction(coh_action);
-        //TODO: YMARATHE: make request with TID here
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback));
+        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback, tid, is_large));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
     }
     
@@ -395,7 +396,9 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(addr, coh_action));
+                m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+                std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, INVALID_TXN_KIND, m_callback, tid, is_large));
+                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(std::move(r), coh_action));
             }
         }
         else if(!same_cache_sys)
@@ -407,7 +410,7 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, b
             uint64_t index = get_index(addr);
             std::vector<CacheLine>& set = m_tagStore[index];
             bool is_translation = (coh_action == BROADCAST_TRANSLATION_WRITE) || (coh_action == BROADCAST_TRANSLATION_READ);
-            if(is_found(set, tag, is_translation, hit_pos))
+            if(is_found(set, tag, tid, is_translation, hit_pos))
             {
                 CacheLine &line = set[hit_pos];
                 kind coh_txn_kind = txnKindForCohAction(coh_action);

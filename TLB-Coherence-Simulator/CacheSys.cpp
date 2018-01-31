@@ -84,12 +84,12 @@ void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
 void CacheSys::tick()
 {
     //First, handle coherence actions in the current clock cycle
-    for(std::map<uint64_t, CoherenceAction>::iterator it = m_coh_act_list.begin();
+    for(std::map<std::unique_ptr<Request>, CoherenceAction>::iterator it = m_coh_act_list.begin();
         it != m_coh_act_list.end(); )
     {
         for(int i = 0; i < m_caches.size() - 1; i++)
         {
-            m_caches[i]->handle_coherence_action(it->second, it->first, false);
+            m_caches[i]->handle_coherence_action(it->second, it->first->m_addr, it->first->m_tid, it->first->m_is_large, false);
         }
         
         it = m_coh_act_list.erase(it);
@@ -167,9 +167,9 @@ void CacheSys::set_core_id(int core_id)
     m_core_id = core_id;
 }
 
-RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind)
+RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid, bool is_large)
 {
-    return m_caches[0]->lookupAndFillCache(addr, txn_kind);
+    return m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
 }
 
 void CacheSys::set_core(std::shared_ptr<Core>& coreptr)

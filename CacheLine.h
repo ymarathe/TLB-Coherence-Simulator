@@ -19,13 +19,17 @@ public:
     bool dirty;
     bool lock;
     bool is_translation;
+    bool is_large;
     uint64_t tag;
+    uint64_t tid;
     CoherenceProtocol *m_coherence_prot;
     
     CacheLine() : valid(false),
                   dirty(false),
                   lock(false),
                   is_translation(false),
+                  is_large(false),
+                  tid(0),
                   tag(0) { }
     
     void set_coherence_prot(CoherenceProtocol *coherence_prot)

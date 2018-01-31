@@ -117,7 +117,7 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     }
     
     //Should never reach here!
-    assert(true);
+    assert(false);
     return nullptr;
 }
 

@@ -106,10 +106,10 @@ public:
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);
     uint64_t get_line_offset(const uint64_t addr);
-    bool is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, unsigned int &hit_pos);
-    bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, unsigned int &hit_pos);
-    void invalidate(const uint64_t addr, bool is_translation);
-    void evict(uint64_t set_num, const CacheLine &line, bool is_large);
+    bool is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, uint64_t tid, unsigned int &hit_pos);
+    bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, uint64_t tid, unsigned int &hit_pos);
+    void invalidate(const uint64_t addr, uint64_t tid, bool is_translation);
+    void evict(uint64_t set_num, const CacheLine &line);
     RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
@@ -119,7 +119,7 @@ public:
     void printContents();
     void set_cache_sys(CacheSys *cache_sys);
     unsigned int get_latency_cycles();
-    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr, bool same_cache_sys);
+    void handle_coherence_action(CoherenceAction coh_action, uint64_t addr, uint64_t tid, bool is_large, bool same_cache_sys);
     void set_cache_type(CacheType cache_type);
     CacheType get_cache_type();
     void set_core(std::shared_ptr<Core>& coreptr);
