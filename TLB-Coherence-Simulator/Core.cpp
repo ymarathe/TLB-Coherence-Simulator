@@ -87,7 +87,7 @@ uint64_t Core::retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_larg
     return returnval;
 }
 
-std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation, unsigned int level, CacheType cache_type)
+std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation, bool is_large, unsigned int level, CacheType cache_type)
 {
     unsigned long num_tlbs = m_tlb_hier->m_caches.size();
     bool is_last_level_tlb = m_tlb_hier->is_last_level(level) && (cache_type == TRANSLATION_ONLY);
@@ -103,7 +103,7 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     //Not penultimate, return lower TLB (small/large)
     if(!is_penultimate_tlb && is_translation)
     {
-        return (addr & 0x200000) ? m_tlb_hier->m_caches[2 * level - 1] : m_tlb_hier->m_caches[2 * level];
+        return (addr & 0x200000) ? m_tlb_hier->m_caches[level - (level % 2) + 2] : m_tlb_hier->m_caches[level - (level % 2) + 3];
     }
     //Penultimate TLB. Return penultimate cache
     else if(is_penultimate_tlb && is_translation)
@@ -113,7 +113,7 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     //Last level cache and translation line. Return appropriate last level TLB (small/large)
     else if(m_cache_hier->is_last_level(level) && is_translation)
     {
-        return (addr & 0x200000) ? m_tlb_hier->m_caches[num_tlbs - 2] : m_tlb_hier->m_caches[num_tlbs - 1];
+        return (is_large) ? m_tlb_hier->m_caches[num_tlbs - 1] : m_tlb_hier->m_caches[num_tlbs - 2];
     }
     
     //Should never reach here!

@@ -11,11 +11,17 @@
 
 void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
 {
-    //Add higher caches
-    assert (cache->get_cache_type() != TRANSLATION_ONLY && !is_translation_hier);
-    assert (cache->get_cache_type() == TRANSLATION_ONLY && is_translation_hier);
     
-    if(!is_translation_hier)
+    if(m_is_translation_hier)
+    {
+        assert(cache->get_cache_type() == TRANSLATION_ONLY);
+    }
+    else
+    {
+        assert(cache->get_cache_type() != TRANSLATION_ONLY);
+    }
+    
+    if(!m_is_translation_hier)
     {
         if(m_caches.size() > 0)
         {
@@ -34,14 +40,7 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
     {
         unsigned long cur_size = m_caches.size();
         
-        if(cur_size == 0)
-        {
-            cache->set_level(1);
-        }
-        else
-        {
-            cache->set_level((unsigned int)(cur_size + 1)/2 + 1);
-        }
+        cache->set_level((unsigned int)((cur_size + 2)/2));
     }
     
     //Point current cache lower_cache to nullptr
@@ -53,8 +52,16 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
     
     m_caches.push_back(cache);
 
-    assert(m_caches.size() <= NUM_MAX_CACHES);
+    if(m_is_translation_hier)
+    {
+        assert(m_caches.size() <= NUM_MAX_CACHES * 2);
+    }
+    else
+    {
+        assert(m_caches.size() <= NUM_MAX_CACHES);
+    }
     
+    //TODO: YMARATHE: Handle this for translation hierarchy.
     unsigned int curr_cache_latency = cache->get_latency_cycles();
     m_cache_latency_cycles[m_caches.size() - 1] = curr_cache_latency;
     if(m_caches.size() > 1)
@@ -128,9 +135,9 @@ void CacheSys::tick()
 
 bool CacheSys::is_last_level(unsigned int cache_level)
 {
-    if(is_translation_hier)
+    if(m_is_translation_hier)
     {
-        return (cache_level == ((m_caches.size()/2) + 1));
+        return (cache_level == (m_caches.size()/2));
     }
     
     return (cache_level == m_caches.size());
@@ -138,9 +145,9 @@ bool CacheSys::is_last_level(unsigned int cache_level)
 
 bool CacheSys::is_penultimate_level(unsigned int cache_level)
 {
-    if(is_translation_hier)
+    if(m_is_translation_hier)
     {
-        return (cache_level == (m_caches.size()/2));
+        return (cache_level == (m_caches.size()/2) - 1);
     }
     
     return (cache_level == m_caches.size()  - 1);
@@ -177,6 +184,6 @@ void CacheSys::set_core(Core *coreptr)
 
 bool CacheSys::get_is_translation_hier()
 {
-    return is_translation_hier;
+    return m_is_translation_hier;
 }
 

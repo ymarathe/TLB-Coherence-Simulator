@@ -56,7 +56,7 @@ public:
     
     uint64_t retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large);
     
-    std::shared_ptr<Cache> get_lower_cache(uint64_t addr, bool is_translation, unsigned int cache_level, CacheType cache_type);
+    std::shared_ptr<Cache> get_lower_cache(uint64_t addr, bool is_translation, bool is_large, unsigned int cache_level, CacheType cache_type);
     
     void tick();
 };

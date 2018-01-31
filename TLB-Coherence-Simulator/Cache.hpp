@@ -65,7 +65,7 @@ private:
     CacheType m_cache_type;
     
 public:
-    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false, CacheType cache_type = DATA_ONLY):
+    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, CacheType cache_type = DATA_ONLY, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
     {
         
@@ -109,7 +109,7 @@ public:
     bool is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool is_translation, unsigned int &hit_pos);
     bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, unsigned int &hit_pos);
     void invalidate(const uint64_t addr, bool is_translation);
-    void evict(uint64_t set_num, const CacheLine &line);
+    void evict(uint64_t set_num, const CacheLine &line, bool is_large);
     RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
@@ -123,7 +123,7 @@ public:
     void set_cache_type(CacheType cache_type);
     CacheType get_cache_type();
     void set_core(Core *coreptr);
-    std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation);
+    std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation, bool is_large = false);
     void higher_caches_release_lock(std::unique_ptr<Request> &r);
 };
 #endif /* Cache_hpp */

@@ -78,7 +78,7 @@ void Cache::invalidate(const uint64_t addr, bool is_translation)
     }
 }
 
-void Cache::evict(uint64_t set_num, const CacheLine &line)
+void Cache::evict(uint64_t set_num, const CacheLine &line, bool is_large)
 {
     //Send back invalidate
     
@@ -107,7 +107,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     //Send writeback if dirty
     //If not, due to inclusiveness, lower caches still have data
     //So do runtime check to ensure hit (and inclusiveness)
-    std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(evict_addr, line.is_translation);
+    std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(evict_addr, line.is_translation, is_large);
     
     if(line.dirty)
     {
@@ -188,7 +188,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     //Evict the victim line if not locked and update replacement state
     if(needs_eviction)
     {
-        evict(index, line);
+        evict(index, line, is_large);
     }
     
     if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
@@ -253,7 +253,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     //We are in upper levels of TLB/cache and we aren't doing writeback.
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
-        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
+        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
         if(lower_cache != nullptr)
         {
             CacheType lower_cache_type = lower_cache->get_cache_type();
@@ -276,7 +276,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     //We are in last level of cache hier and translation entry.
     else
     {
-        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation);
+        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
         if(lower_cache != nullptr)
         {
             lower_cache->lookupAndFillCache(addr, txn_kind);
@@ -434,7 +434,7 @@ void Cache::set_core(Core *coreptr)
     m_core = coreptr;
 }
 
-std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_translation)
+std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_translation, bool is_large)
 {
     std::shared_ptr<Cache> lower_cache;
     
@@ -451,7 +451,7 @@ std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_tr
     //Determine lower_cache dynamically based on the type of transaction
     if(lower_cache == nullptr)
     {
-        lower_cache = m_core->get_lower_cache(addr, is_translation, m_cache_level, m_cache_type);
+        lower_cache = m_core->get_lower_cache(addr, is_translation, is_large, m_cache_level, m_cache_type);
     }
     
     return lower_cache;

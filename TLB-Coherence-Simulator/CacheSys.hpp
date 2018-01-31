@@ -56,10 +56,10 @@ public:
     
     Core *m_core;
     
-    bool is_translation_hier;
+    bool m_is_translation_hier;
     
-    CacheSys(uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
-    m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
+    CacheSys(bool is_translation_hier, uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
+    m_is_translation_hier(is_translation_hier), m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency)
     {
          m_total_latency_cycles[MEMORY_ACCESS_ID] = m_memory_latency;
     }
