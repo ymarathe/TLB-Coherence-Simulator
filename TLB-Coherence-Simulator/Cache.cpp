@@ -260,7 +260,6 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         {
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
-            //TODO: YMARATHE: Add correct thread ID and is_large flag here
             uint64_t access_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, tid, is_large): addr;
             lower_cache->lookupAndFillCache(access_addr, txn_kind, tid, is_large);
         }
@@ -285,7 +284,6 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         }
     }
  
-    
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
 
     //If we need to do writeback, we need to do it for addr already in cache

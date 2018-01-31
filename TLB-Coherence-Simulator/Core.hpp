@@ -23,6 +23,12 @@ private:
         bool m_is_large;
         
         AddrMapKey(uint64_t addr, uint64_t pid, bool is_large) : m_addr(addr), m_pid(pid), m_is_large(is_large) {}
+        
+        friend std::ostream& operator << (std::ostream& out, AddrMapKey &a)
+        {
+            out << "|" << a.m_addr << "|" << a.m_pid << "|" << a.m_is_large << "|" << std::endl;
+            return out;
+        }
     };
     
     std::shared_ptr<CacheSys> m_cache_hier;

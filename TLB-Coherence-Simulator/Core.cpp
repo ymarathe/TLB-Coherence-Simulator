@@ -69,6 +69,9 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     
     va2L3TLBAddr.insert(std::make_pair(l3tlbaddr, AddrMapKey(va, pid, is_large)));
     
+    auto it = va2L3TLBAddr.find(l3tlbaddr);
+    std::cout << std::hex << it->first << ", " << it->second.m_addr << std::endl;
+    
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
@@ -99,21 +102,22 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     {
         return nullptr;
     }
+    //Last level cache and translation line. Return appropriate last level TLB (small/large)
+    if(m_cache_hier->is_last_level(level) && is_translation)
+    {
+        return (is_large) ? m_tlb_hier->m_caches[num_tlbs - 1] : m_tlb_hier->m_caches[num_tlbs - 2];
+    }
     
     //Not penultimate, return lower TLB (small/large)
     if(!is_penultimate_tlb && is_translation)
     {
         return (addr & 0x200000) ? m_tlb_hier->m_caches[level - (level % 2) + 2] : m_tlb_hier->m_caches[level - (level % 2) + 3];
     }
+    
     //Penultimate TLB. Return penultimate cache
-    else if(is_penultimate_tlb && is_translation)
+    if(is_penultimate_tlb && is_translation)
     {
         return m_cache_hier->m_caches[m_cache_hier->m_caches.size() - 2];
-    }
-    //Last level cache and translation line. Return appropriate last level TLB (small/large)
-    else if(m_cache_hier->is_last_level(level) && is_translation)
-    {
-        return (is_large) ? m_tlb_hier->m_caches[num_tlbs - 1] : m_tlb_hier->m_caches[num_tlbs - 2];
     }
     
     //Should never reach here!

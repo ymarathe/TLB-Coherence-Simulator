@@ -104,6 +104,23 @@ int main(int argc, const char * argv[])
     data_hier[0]->tick();
     data_hier[1]->tick();
     
+    for(int i = 0; i < 500; i++)
+    {
+        tlb_hier[0]->tick();
+        tlb_hier[1]->tick();
+        data_hier[0]->tick();
+        data_hier[1]->tick();
+    }
+    
+    RequestStatus r = tlb_hier[0]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_READ, 0, true);
+    tlb_hier[0]->tick();
+    tlb_hier[1]->tick();
+    data_hier[0]->tick();
+    data_hier[1]->tick();
+    
+    
+    std::cout << "Request Status:" << r << std::endl;
+    
     /*data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
     data_hier[0]->tick();
     data_hier[1]->tick();
