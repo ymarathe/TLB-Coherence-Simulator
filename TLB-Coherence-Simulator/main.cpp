@@ -18,12 +18,14 @@ int main(int argc, const char * argv[])
     
     std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(4, 8, 64, 25,  DATA_AND_TRANSLATION));
     
+    bool ll_interface_complete = false;
+    
     /*
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(16384, 4, 4096, 1, TRANSLATION_ONLY));
     std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(4096, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY));
     */
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(8, 8, 4096, 1, TRANSLATION_ONLY));
-    std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(8, 8, 2 * 1024 * 1024, 1, TRANSLATION_ONLY));
+    std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(8, 8, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true));
     
     std::vector<std::shared_ptr<CacheSys>> data_hier;
     std::vector<std::shared_ptr<CacheSys>> tlb_hier;
@@ -49,9 +51,9 @@ int main(int argc, const char * argv[])
         
         tlb_hier.push_back(std::make_shared<CacheSys>(CacheSys(true)));
         l1_tlb.push_back(std::make_shared<Cache>(Cache(2, 2, 4096, 1, TRANSLATION_ONLY)));
-        l1_tlb.push_back(std::make_shared<Cache>(Cache(1, 2, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
+        l1_tlb.push_back(std::make_shared<Cache>(Cache(1, 2, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(4, 4, 4096, 1, TRANSLATION_ONLY)));
-        l2_tlb.push_back(std::make_shared<Cache>(Cache(4, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(4, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
         /*l1_tlb.push_back(std::make_shared<Cache>(Cache(16, 4, 4096, 1, TRANSLATION_ONLY)));
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 1, TRANSLATION_ONLY)));
@@ -68,11 +70,12 @@ int main(int argc, const char * argv[])
         
         cores.push_back(std::make_shared<Core>(Core(data_hier[i], tlb_hier[i], rob_arr[i])));
         
-        data_hier[i]->set_core_id(i);
         data_hier[i]->set_core(cores[i]);
-        tlb_hier[i]->set_core_id(i);
         tlb_hier[i]->set_core(cores[i]);
         
+        cores[i]->set_core_id(i);
+        
+        ll_interface_complete = cores[i]->interfaceHier(ll_interface_complete);
     }
     
     //Make cache hierarchies aware of each other
@@ -98,13 +101,14 @@ int main(int argc, const char * argv[])
             }
         }
     }
-    tlb_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_READ, 0, false);
+    
+    tlb_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_READ, 0, true);
     tlb_hier[0]->tick();
     tlb_hier[1]->tick();
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    for(int i = 0; i < 500; i++)
+    for(int i = 0; i < 10000; i++)
     {
         tlb_hier[0]->tick();
         tlb_hier[1]->tick();
@@ -112,14 +116,11 @@ int main(int argc, const char * argv[])
         data_hier[1]->tick();
     }
     
-    RequestStatus r = tlb_hier[0]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_READ, 0, true);
+    /*RequestStatus r = tlb_hier[0]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_READ, 0, true);
     tlb_hier[0]->tick();
     tlb_hier[1]->tick();
     data_hier[0]->tick();
-    data_hier[1]->tick();
-    
-    
-    std::cout << "Request Status:" << r << std::endl;
+    data_hier[1]->tick();*/
     
     /*data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
     data_hier[0]->tick();

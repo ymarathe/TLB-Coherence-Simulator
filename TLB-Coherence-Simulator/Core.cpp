@@ -9,10 +9,13 @@
 #include "Core.hpp"
 #include "Cache.hpp"
 
-void Core::interfaceHier()
+bool Core::interfaceHier(bool ll_interface_complete)
 {
     unsigned long num_tlbs = m_tlb_hier->m_caches.size();
     unsigned long num_caches = m_cache_hier->m_caches.size();
+    
+    assert(num_tlbs >= MIN_NUM_TLBS);
+    assert(num_caches >= MIN_NUM_CACHES);
     
     std::shared_ptr<Cache> penultimate_tlb_large = m_tlb_hier->m_caches[num_tlbs - 3];
     std::shared_ptr<Cache> penultimate_tlb_small = m_tlb_hier->m_caches[num_tlbs - 4];
@@ -27,20 +30,27 @@ void Core::interfaceHier()
     penultimate_tlb_large->add_lower_cache(penultimate_cache);
     penultimate_tlb_small->add_lower_cache(penultimate_cache);
     
-    last_tlb_large->add_higher_cache(last_cache);
-    last_tlb_small->add_higher_cache(last_cache);
+    if(!ll_interface_complete)
+    {
+        last_tlb_large->add_higher_cache(last_cache);
+        last_tlb_small->add_higher_cache(last_cache);
+        ll_interface_complete = true;
+    }
     
-    penultimate_cache->add_higher_cache(penultimate_tlb_large);
     penultimate_cache->add_higher_cache(penultimate_tlb_small);
+    penultimate_cache->add_higher_cache(penultimate_tlb_large);
     
-    //If there are extra levels in between, interface them statically
-    for(int i = 1; i < num_tlbs - 4; i++)
+    assert(penultimate_tlb_large->get_is_large_page_tlb());
+    assert(!penultimate_tlb_small->get_is_large_page_tlb());
+
+    for(int i = 2; i < num_tlbs - 2; i++)
     {
         std::shared_ptr<Cache> current_tlb = m_tlb_hier->m_caches[i];
-        std::shared_ptr<Cache> lower_tlb = m_tlb_hier->m_caches[i + 2];
-        current_tlb->add_lower_cache(lower_tlb);
-        lower_tlb->add_higher_cache(current_tlb);
+        current_tlb->add_higher_cache(m_tlb_hier->m_caches[i - (i % 2) - 1]);
+        current_tlb->add_higher_cache(m_tlb_hier->m_caches[i - (i % 2) - 2]);
     }
+    
+    return ll_interface_complete;
 }
 
 uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
@@ -75,17 +85,26 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
-uint64_t Core::retrieveActualAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large)
+uint64_t Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb, bool *propagate_access)
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
-    assert(iter != va2L3TLBAddr.end());
     uint64_t returnval = -1;
     
-    if(pid == iter->second.m_pid && pid == iter->second.m_is_large)
+    if(iter != va2L3TLBAddr.end() && pid == iter->second.m_pid && is_large == iter->second.m_is_large)
     {
         returnval = iter->second.m_addr;
-        va2L3TLBAddr.erase(iter);
+        //propagate_to_small_tlb = 0, go with large
+        //propagate_to_small_tlb = 1, go with small
+        bool propagate_to_small_tlb = ((returnval & 0x200000) != 0);
+        *propagate_access = (propagate_to_small_tlb == is_higher_cache_small_tlb);
+        if(propagate_access)
+        {
+            va2L3TLBAddr.erase(iter);
+        }
+        return returnval;
     }
+    
+    *propagate_access = false;
     
     return returnval;
 }
@@ -138,4 +157,12 @@ void Core::tick()
     }
     
     m_clk++;
+}
+
+void Core::set_core_id(unsigned int core_id)
+{
+    m_core_id = core_id;
+    
+    m_tlb_hier->set_core_id(core_id);
+    m_cache_hier->set_core_id(core_id);
 }

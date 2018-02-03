@@ -64,8 +64,12 @@ private:
     
     CacheType m_cache_type;
     
+    bool m_is_large_page_tlb;
+    
+    unsigned int m_core_id;
+    
 public:
-    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, CacheType cache_type = DATA_ONLY, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
+    Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, CacheType cache_type = DATA_ONLY, bool is_large_page_tlb = false, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
     {
         
@@ -101,6 +105,8 @@ public:
         m_inclusive = inclusive;
         
         m_cache_type = cache_type;
+        
+        m_is_large_page_tlb = is_large_page_tlb;
     }
     
     uint64_t get_index(const uint64_t addr);
@@ -124,6 +130,9 @@ public:
     CacheType get_cache_type();
     void set_core(std::shared_ptr<Core>& coreptr);
     std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation, bool is_large = false);
-    void higher_caches_release_lock(std::unique_ptr<Request> &r);
+    void propagate_release_lock(std::unique_ptr<Request> &r);
+    bool get_is_large_page_tlb();
+    void set_core_id(unsigned int core_id);
+    unsigned int get_core_id();
 };
 #endif /* Cache_hpp */

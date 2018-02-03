@@ -17,13 +17,13 @@ class Request {
 public:
     uint64_t m_addr;
     kind m_type;
-    int m_core_id;
-    int m_cache_level;
+    unsigned int m_core_id;
+    unsigned int m_cache_level;
     uint64_t m_tid;
     bool m_is_large;
     std::function<void(std::unique_ptr<Request>&)>& m_callback;
     
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large, int core_id, int cache_level) :
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large, unsigned int core_id, unsigned int cache_level) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
@@ -36,11 +36,11 @@ public:
     Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback) :
     Request(addr, type, callback, 0, 0, 0, 0) {}
     
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, int core_id) :
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, unsigned int core_id) :
     Request(addr, type, callback, 0, 0, core_id, 0) {}
     
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large) :
-    Request(addr, type, callback, tid, is_large, 0, 0) {}
+    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large, unsigned int core_id) :
+    Request(addr, type, callback, tid, is_large, core_id, 0) {}
     
     bool is_translation_request();
     

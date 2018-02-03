@@ -84,6 +84,8 @@ public:
     
     bool get_is_translation_hier();
     
+    unsigned int get_core_id();
+    
 };
 
 #endif /* CacheSys_hpp */

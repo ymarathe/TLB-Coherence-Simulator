@@ -165,11 +165,24 @@ void CacheSys::printContents()
 void CacheSys::set_core_id(int core_id)
 {
     m_core_id = core_id;
+    int limit = (m_is_translation_hier) ? (int)(m_caches.size() - 2) : (int)(m_caches.size() - 1);
+    
+    for(int i = 0; i < limit; i++)
+    {
+        m_caches[i]->set_core_id(core_id);
+    }
 }
 
 RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid, bool is_large)
 {
-    return m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
+    if(!m_is_translation_hier)
+    {
+        return m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
+    }
+    else
+    {
+        return (is_large) ? m_caches[1]->lookupAndFillCache(addr, txn_kind, tid, is_large) : m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
+    }
 }
 
 void CacheSys::set_core(std::shared_ptr<Core>& coreptr)
@@ -187,3 +200,7 @@ bool CacheSys::get_is_translation_hier()
     return m_is_translation_hier;
 }
 
+unsigned int CacheSys::get_core_id()
+{
+    return m_core_id;
+}
