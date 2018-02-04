@@ -371,8 +371,6 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
 {
     auto it = m_mshr_entries.find(r->m_addr);
     
-    //std::cout << "Request at level::" << m_cache_level << ", Addr::" << std::hex << r->m_addr << std::endl;
-    
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
@@ -380,7 +378,6 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
         
         if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
-            //std::cout << "Found in MSHR::" << m_cache_level << ", changing lock bit, Addr::" << r->m_addr << std::endl;
             it->second->m_line->lock = false;
         }
         
@@ -501,22 +498,36 @@ void Cache::propagate_release_lock(std::unique_ptr<Request> &r)
 {
     try
     {
+        if(r->m_addr == 0x7FFFFFFFFFC0)
+        {
+            std::string hier = (m_cache_sys->get_is_translation_hier()) ? "translation" : "data";
+            std::cout << "Release lock for request seen at Level " << m_cache_level << " in " << hier << " hierarchy" << std::endl;
+        }
         for(int i = 0; i < m_higher_caches.size(); i++)
         {
             auto higher_cache = m_higher_caches[i].lock();
             if(higher_cache != nullptr)
             {
+                //Process higher_cache->release_lock only for appropriate cache type [Translation = DATA_AND_TRANSLATION, TRANSLATION_ONLY], [Data = DATA_AND_TRANSLATION, DATA_ONLY]
+                //If we are in last level cache in data hier, check originating core id.
+                //If we are in last level of translation hier, or any other level, process.
                 if(((r->is_translation_request() && higher_cache->get_cache_type() != DATA_ONLY) ||
                     (!r->is_translation_request() && higher_cache->get_cache_type() != TRANSLATION_ONLY)) && \
                    ((r->m_core_id == higher_cache->get_core_id() && m_cache_sys->is_last_level(m_cache_level) && !m_cache_sys->get_is_translation_hier()) || !m_cache_sys->is_last_level(m_cache_level) || (m_cache_sys->is_last_level(m_cache_level) && m_cache_sys->get_is_translation_hier())))
                 {
-                    
+                    //Is this is data to translation boundary? i.e. from L2D$ to L2 TLB?
                     bool is_dat_to_tr_boundary = (m_cache_type == DATA_AND_TRANSLATION) && (higher_cache->get_cache_type() == TRANSLATION_ONLY);
+                    //Are we fully in translation hierarchy? i.e L1 TLB to L2 TLB
                     bool in_translation_hier = (m_cache_type == TRANSLATION_ONLY) && (higher_cache->get_cache_type() == TRANSLATION_ONLY);
+                    //Assume we propagate access.
                     bool propagate_access = true;
                     bool is_higher_cache_small_tlb = !higher_cache->get_is_large_page_tlb();
+                    // If data to translation boundary, obtain reverse mapping
                     uint64_t access_addr = (is_dat_to_tr_boundary) ? m_core->retrieveAddr(r->m_addr, r->m_tid, r->m_is_large, is_higher_cache_small_tlb, &propagate_access) : r->m_addr;
+                    //If we are fully in translation hierarchy, propagate access to the right TLB i.e. small/large
+                    //If we are not, propagate access anyway.
                     propagate_access = (propagate_access) && ((in_translation_hier && (r->m_is_large == !is_higher_cache_small_tlb)) || !in_translation_hier);
+                    //If we need to propagate access, obtain correct address [reverse mapped, or r->m_addr]
                     r->m_addr = (propagate_access) ? access_addr : r->m_addr;
                     if(propagate_access)
                     {

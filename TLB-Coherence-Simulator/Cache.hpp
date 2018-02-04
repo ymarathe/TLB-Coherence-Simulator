@@ -50,7 +50,6 @@ private:
     
     std::shared_ptr<Core> m_core;
     
-    //std::map<uint64_t, CacheLine*> m_mshr_entries;
     std::map<uint64_t, MSHREntry*> m_mshr_entries;
     
     unsigned int m_cache_level;

@@ -15,6 +15,7 @@
 
 class Request {
 public:
+    friend class RequestComparator;
     uint64_t m_addr;
     kind m_type;
     unsigned int m_core_id;
@@ -48,6 +49,14 @@ public:
     {
         out << "Addr: " << r.m_addr << ", kind: " << r.m_type << ", core : " << r.m_core_id << std::endl;
         return out;
+    }
+};
+
+class RequestComparator {
+public:
+    bool operator ()(const Request &r1, const Request &r2)
+    {
+        return ((r1.m_addr > r2.m_addr) && (r1.m_type > r2.m_type) && (r1.m_tid > r2.m_tid) && (r1.m_is_large > r2.m_is_large) && (r1.m_core_id > r2.m_core_id));
     }
 };
 
