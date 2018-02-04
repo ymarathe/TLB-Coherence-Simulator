@@ -60,20 +60,6 @@ void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
     {
         assert(m_caches.size() <= NUM_MAX_CACHES);
     }
-    
-    //TODO: YMARATHE: Handle this for translation hierarchy.
-    unsigned int curr_cache_latency = cache->get_latency_cycles();
-    m_cache_latency_cycles[m_caches.size() - 1] = curr_cache_latency;
-    if(m_caches.size() > 1)
-    {
-        m_total_latency_cycles[m_caches.size() - 1] = m_total_latency_cycles[m_caches.size() - 2] + curr_cache_latency;
-        m_total_latency_cycles[MEMORY_ACCESS_ID] += curr_cache_latency;
-    }
-    else
-    {
-        m_total_latency_cycles[m_caches.size() - 1] = m_cache_latency_cycles[m_caches.size() - 1];
-        m_total_latency_cycles[MEMORY_ACCESS_ID] += curr_cache_latency;
-    }
 }
 
 void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
@@ -87,9 +73,11 @@ void CacheSys::tick()
     for(std::map<std::unique_ptr<Request>, CoherenceAction>::iterator it = m_coh_act_list.begin();
         it != m_coh_act_list.end(); )
     {
+        bool valid_txn_kind = (it->first->m_type == DATA_WRITE) || (it->first->m_type == TRANSLATION_WRITE);
+        assert(valid_txn_kind);
         for(int i = 0; i < m_caches.size() - 1; i++)
         {
-            m_caches[i]->handle_coherence_action(it->second, it->first->m_addr, it->first->m_tid, it->first->m_is_large, false);
+            m_caches[i]->handle_coherence_action(it->second, it->first->m_addr, it->first->m_tid, it->first->m_is_large, 0, (it->first->m_type == DATA_WRITE) ? false : true, false);
         }
         
         it = m_coh_act_list.erase(it);

@@ -124,7 +124,6 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
         else
         {
             //Writeback to memory
-            
         }
     }
     else
@@ -140,18 +139,25 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     }
 }
 
-RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t tid, bool is_large)
+RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t tid, bool is_large, unsigned int curr_latency)
 {
     unsigned int hit_pos;
     uint64_t tag = get_tag(addr);
     uint64_t index = get_index(addr);
     std::vector<CacheLine>& set = m_tagStore[index];
+    uint64_t coh_addr;
+    bool coh_is_translation;
+    uint64_t coh_tid;
+    bool coh_is_large;
+    uint64_t cur_addr;
     
     bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
     
     if(is_hit(set, tag, is_translation, tid, hit_pos))
     {
         CacheLine &line = set[hit_pos];
+        
+        cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
         
         //Is line dirty now?
         line.dirty = line.dirty || (txn_kind == DATA_WRITE) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITEBACK) || (txn_kind == TRANSLATION_WRITEBACK);
@@ -166,12 +172,19 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback, tid, is_large, m_core_id));
-        m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[m_cache_level - 1], std::move(r)));
+        m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency, std::move(r)));
         
         //Coherence handling
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
         
-        handle_coherence_action(coh_action, addr, tid, is_large, true);
+        //If we need to do writeback, we need to do it for addr already in cache
+        //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
+        coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
+        coh_is_translation = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_translation : is_translation;
+        coh_tid = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.tid : tid;
+        coh_is_large = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_large : is_large;
+        
+        handle_coherence_action(coh_action, coh_addr, coh_tid, coh_is_large, curr_latency, coh_is_translation, true);
         
         return REQUEST_HIT;
     }
@@ -186,9 +199,9 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     
     CacheLine &line = set[insert_pos];
     
-    uint64_t cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
-    
     auto mshr_iter = m_mshr_entries.find(addr);
+    
+    cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
     
     //Blocking for TLB access.
     unsigned int mshr_size = (m_cache_type != TRANSLATION_ONLY) ? 16 : 1;
@@ -214,7 +227,12 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
         
             uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
             
-            handle_coherence_action(coh_action, coh_addr, tid, is_large, true);
+            coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
+            coh_is_translation = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_translation : is_translation;
+            coh_tid = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.tid : tid;
+            coh_is_large = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_large : is_large;
+            
+            handle_coherence_action(coh_action, coh_addr, coh_tid, coh_is_large, curr_latency, coh_is_translation, true);
         }
         
         //Update replacement state
@@ -264,6 +282,7 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
     }
     
     //We are in upper levels of TLB/cache and we aren't doing writeback.
+    //Go to lower caches and do lookup.
     if(!m_cache_sys->is_last_level(m_cache_level) && ((txn_kind != DATA_WRITEBACK) || (txn_kind != TRANSLATION_WRITEBACK)))
     {
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
@@ -272,37 +291,41 @@ RequestStatus Cache::lookupAndFillCache(uint64_t addr, kind txn_kind, uint64_t t
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
             uint64_t access_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, tid, is_large): addr;
-            lower_cache->lookupAndFillCache(access_addr, txn_kind, tid, is_large);
+            lower_cache->lookupAndFillCache(access_addr, txn_kind, tid, is_large, curr_latency + m_latency_cycles);
         }
     }
     //We are in last level of cache hier and handling a data entry
     //We are in last level of TLB hier and handling a TLB entry
+    //Go to memory.
     else if((m_cache_sys->is_last_level(m_cache_level) && !is_translation && !m_cache_sys->get_is_translation_hier()) || \
             (m_cache_sys->is_last_level(m_cache_level) && is_translation && (m_cache_sys->get_is_translation_hier())))
     {
         //TODO:: YMARATHE. Move std::bind elsewhere, performance hit
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, m_callback, tid, is_large, m_core_id));
-        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
+        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency, std::move(r)));
+        
+        std::cout << "Sending request to memory with latency = " << (curr_latency + m_cache_sys->m_memory_latency) << std::endl;
     }
     //We are in last level of cache hier and translation entry.
+    //Go to L3 TLB.
     else
     {
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
         if(lower_cache != nullptr)
         {
-            lower_cache->lookupAndFillCache(addr, txn_kind, tid, is_large);
+            lower_cache->lookupAndFillCache(addr, txn_kind, tid, is_large, curr_latency + m_latency_cycles);
         }
     }
  
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind);
-
-    //If we need to do writeback, we need to do it for addr already in cache
-    //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
     
-    uint64_t coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
+    coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
+    coh_is_translation = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_translation : is_translation;
+    coh_tid = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.tid : tid;
+    coh_is_large = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? line.is_large : is_large;
     
-    handle_coherence_action(coh_action, coh_addr, tid, is_large, true);
+    handle_coherence_action(coh_action, coh_addr, coh_tid, coh_is_large, curr_latency, coh_is_translation, true);
     
     return REQUEST_MISS;
 }
@@ -383,16 +406,17 @@ unsigned int Cache::get_latency_cycles()
     return m_latency_cycles;
 }
 
-void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, uint64_t tid, bool is_large, bool same_cache_sys)
+void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, uint64_t tid, bool is_large, unsigned int curr_latency, bool is_translation, bool same_cache_sys)
 {
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
-        //Send request to memory
-        //Writeback should be from the cache line in question?
-        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        kind coh_txn_kind = txnKindForCohAction(coh_action);
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, coh_txn_kind, m_callback, tid, is_large, m_core_id));
-        m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + m_cache_sys->m_total_latency_cycles[MEMORY_ACCESS_ID], std::move(r)));
+        //Evict to lower cache if we need to do a writeback.
+        std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
+        if(lower_cache != nullptr)
+        {
+            kind coh_txn_kind = txnKindForCohAction(coh_action);
+            lower_cache->lookupAndFillCache(addr, coh_txn_kind, tid, is_large, curr_latency + m_latency_cycles);
+        }
     }
     
     else if(coh_action == BROADCAST_DATA_READ || coh_action == BROADCAST_DATA_WRITE || \
@@ -406,7 +430,8 @@ void Cache::handle_coherence_action(CoherenceAction coh_action, uint64_t addr, u
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
                 m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-                std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, INVALID_TXN_KIND, m_callback, tid, is_large, m_core_id));
+                //Inserting dummy TRANSLATION_WRITE and DATA_WRITE requests to decode whether coherence action was actually triggered by a translation request.
+                std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, is_translation ? TRANSLATION_WRITE : DATA_WRITE, m_callback, tid, is_large, m_core_id));
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(std::move(r), coh_action));
             }
         }

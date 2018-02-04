@@ -79,9 +79,6 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     
     va2L3TLBAddr.insert(std::make_pair(l3tlbaddr, AddrMapKey(va, pid, is_large)));
     
-    auto it = va2L3TLBAddr.find(l3tlbaddr);
-    std::cout << std::hex << it->first << ", " << it->second.m_addr << std::endl;
-    
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
