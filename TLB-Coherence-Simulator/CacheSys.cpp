@@ -159,17 +159,25 @@ void CacheSys::set_core_id(int core_id)
     {
         m_caches[i]->set_core_id(core_id);
     }
+    
+    //Identifier for last level TLB/cache.
+    if(m_is_translation_hier)
+    {
+        m_caches[m_caches.size() - 2]->set_core_id(-1);
+    }
+    
+    m_caches[m_caches.size() - 1]->set_core_id(-1);
 }
 
-RequestStatus CacheSys::lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid, bool is_large)
+RequestStatus CacheSys::lookupAndFillCache(Request &r)
 {
     if(!m_is_translation_hier)
     {
-        return m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
+        return m_caches[0]->lookupAndFillCache(r, 0);
     }
     else
     {
-        return (is_large) ? m_caches[1]->lookupAndFillCache(addr, txn_kind, tid, is_large) : m_caches[0]->lookupAndFillCache(addr, txn_kind, tid, is_large);
+        return (r.m_is_large) ? m_caches[1]->lookupAndFillCache(r) : m_caches[0]->lookupAndFillCache(r);
     }
 }
 

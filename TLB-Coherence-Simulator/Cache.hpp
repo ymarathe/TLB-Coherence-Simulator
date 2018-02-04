@@ -29,8 +29,9 @@ private:
     public:
         kind m_txn_kind;
         CacheLine *m_line;
+        bool m_is_core_agnostic;
         
-        MSHREntry(kind txn_kind, CacheLine *line) : m_txn_kind(txn_kind), m_line(line) {}
+        MSHREntry(kind txn_kind, CacheLine *line) : m_txn_kind(txn_kind), m_line(line), m_is_core_agnostic(false) {}
     };
     
     unsigned int m_num_sets;
@@ -50,7 +51,7 @@ private:
     
     std::shared_ptr<Core> m_core;
     
-    std::map<uint64_t, MSHREntry*> m_mshr_entries;
+    std::map<Request, MSHREntry*, RequestComparator> m_mshr_entries;
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;
@@ -115,7 +116,7 @@ public:
     bool is_hit(const std::vector<CacheLine> &set, const uint64_t tag, bool is_translation, uint64_t tid, unsigned int &hit_pos);
     void invalidate(const uint64_t addr, uint64_t tid, bool is_translation);
     void evict(uint64_t set_num, const CacheLine &line);
-    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false, unsigned int curr_latency = 0);
+    RequestStatus lookupAndFillCache(Request &r, unsigned int curr_latency = 0);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);

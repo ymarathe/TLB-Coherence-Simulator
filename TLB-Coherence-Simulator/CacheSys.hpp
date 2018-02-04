@@ -74,7 +74,7 @@ public:
     
     void set_core_id(int core_id);
     
-    RequestStatus lookupAndFillCache(const uint64_t addr, kind txn_kind, uint64_t tid = 0, bool is_large = false);
+    RequestStatus lookupAndFillCache(Request &r);
     
     bool get_is_translation_hier();
     

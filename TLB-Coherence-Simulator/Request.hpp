@@ -19,44 +19,48 @@ public:
     uint64_t m_addr;
     kind m_type;
     unsigned int m_core_id;
-    unsigned int m_cache_level;
     uint64_t m_tid;
     bool m_is_large;
-    std::function<void(std::unique_ptr<Request>&)>& m_callback;
+    bool m_is_core_agnostic;
+    const std::function<void(std::unique_ptr<Request>&)>& m_callback;
     
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large, unsigned int core_id, unsigned int cache_level) :
+    Request(uint64_t addr, kind type, uint64_t tid, bool is_large, unsigned int core_id, const std::function<void(std::unique_ptr<Request>&)>& callback = nullptr) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
-    m_cache_level(cache_level),
     m_callback(callback),
     m_tid(tid),
-    m_is_large(is_large)
+    m_is_large(is_large),
+    m_is_core_agnostic(false)
     {}
-    
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback) :
-    Request(addr, type, callback, 0, 0, 0, 0) {}
-    
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, unsigned int core_id) :
-    Request(addr, type, callback, 0, 0, core_id, 0) {}
-    
-    Request(uint64_t addr, kind type, std::function<void(std::unique_ptr<Request>&)>& callback, uint64_t tid, bool is_large, unsigned int core_id) :
-    Request(addr, type, callback, tid, is_large, core_id, 0) {}
     
     bool is_translation_request();
     
     friend std::ostream& operator << (std::ostream &out, const Request &r)
     {
-        out << "Addr: " << r.m_addr << ", kind: " << r.m_type << ", core : " << r.m_core_id << std::endl;
+        out << "Addr: " << r.m_addr << ", kind: " << r.m_type <<  ", tid: " << r.m_tid << ", is_large: " << r.m_is_large << ", core: " << r.m_core_id << ", is_agnostic:" << r.m_is_core_agnostic << std::endl;
         return out;
     }
+    
 };
 
 class RequestComparator {
 public:
-    bool operator ()(const Request &r1, const Request &r2)
+    bool operator () (const Request &r1, const Request &r2) const
     {
-        return ((r1.m_addr > r2.m_addr) && (r1.m_type > r2.m_type) && (r1.m_tid > r2.m_tid) && (r1.m_is_large > r2.m_is_large) && (r1.m_core_id > r2.m_core_id));
+        //If all else is equal, and one of the requests is core agnostic, return false.
+        if(r1.m_addr < r2.m_addr)
+            return true;
+        if(r1.m_type < r2.m_type)
+            return true;
+        if(r1.m_tid < r2.m_tid)
+            return true;
+        if(r1.m_is_large < r2.m_is_large)
+            return true;
+        if(!r1.m_is_core_agnostic && !r2.m_is_core_agnostic && (r1.m_core_id < r2.m_core_id))
+            return true;
+        
+        return false;
     }
 };
 
