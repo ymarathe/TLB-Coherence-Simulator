@@ -18,7 +18,12 @@ void CoherenceProtocol::forceCoherenceState(CoherenceState cs)
     coh_state = cs;
 }
 
-CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
+void CoherenceProtocol::set_level(unsigned int cache_level)
+{
+    m_cache_level = cache_level;
+}
+
+CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceState propagate_coh_state)
 {
     //TODO: Need to handle writebacks here as well
     CoherenceAction coh_action = NONE;
@@ -64,24 +69,29 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
                 next_coh_state = INVALID;
                 coh_action = MEMORY_TRANSLATION_WRITEBACK;
             }
-            else if (txn_kind == DATA_WRITE)
+            else if (txn_kind == DATA_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_DATA_WRITE;
             }
-            else if (txn_kind == DATA_WRITEBACK)
+            else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
-            else if(txn_kind == TRANSLATION_WRITE)
+            else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
+            {
+                next_coh_state = propagate_coh_state;
+                coh_action = NONE;
+            }
+            else if(txn_kind == TRANSLATION_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_TRANSLATION_WRITE;
             }
-            else if(txn_kind == TRANSLATION_WRITEBACK)
+            else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -114,24 +124,29 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
                 next_coh_state = INVALID;
                 coh_action = NONE;
             }
-            else if(txn_kind == DATA_WRITE)
+            else if(txn_kind == DATA_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_DATA_WRITE;
             }
-            else if(txn_kind == DATA_WRITEBACK)
+            else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
-            else if(txn_kind == TRANSLATION_WRITE)
+            else if(txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
+            {
+                next_coh_state = propagate_coh_state;
+                coh_action = NONE;
+            }
+            else if(txn_kind == TRANSLATION_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_TRANSLATION_WRITE;
             }
-            else if(txn_kind == TRANSLATION_WRITEBACK)
+            else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -151,24 +166,29 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
                 next_coh_state = INVALID;
                 coh_action = NONE;
             }
-            else if (txn_kind == DATA_WRITE)
+            else if (txn_kind == DATA_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_DATA_WRITE;
             }
-            else if (txn_kind == DATA_WRITEBACK)
+            else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
-            else if (txn_kind == TRANSLATION_WRITE)
+            else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
+            {
+                next_coh_state = propagate_coh_state;
+                coh_action = NONE;
+            }
+            else if (txn_kind == TRANSLATION_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_TRANSLATION_WRITE;
             }
-            else if (txn_kind == TRANSLATION_WRITEBACK)
+            else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -188,24 +208,29 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind)
                 next_coh_state = EXCLUSIVE;
                 coh_action = BROADCAST_TRANSLATION_READ;
             }
-            else if (txn_kind == DATA_WRITE)
+            else if (txn_kind == DATA_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_DATA_WRITE;
             }
-            else if (txn_kind == DATA_WRITEBACK)
+            else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
-            else if(txn_kind == TRANSLATION_WRITE)
+            else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
+            {
+                next_coh_state = propagate_coh_state;
+                coh_action = NONE;
+            }
+            else if(txn_kind == TRANSLATION_WRITE && m_cache_level == 1)
             {
                 next_coh_state = MODIFIED;
                 coh_action = BROADCAST_TRANSLATION_WRITE;
             }
-            else if(txn_kind == TRANSLATION_WRITEBACK)
+            else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else

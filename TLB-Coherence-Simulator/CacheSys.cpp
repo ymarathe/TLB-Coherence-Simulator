@@ -70,14 +70,21 @@ void CacheSys::add_cachesys(std::shared_ptr<CacheSys> cs)
 void CacheSys::tick()
 {
     //First, handle coherence actions in the current clock cycle
+    bool needs_state_correction = false;
+    bool state_corrected = false;
     for(std::map<std::unique_ptr<Request>, CoherenceAction>::iterator it = m_coh_act_list.begin();
         it != m_coh_act_list.end(); )
     {
-        bool valid_txn_kind = (it->first->m_type == DATA_WRITE) || (it->first->m_type == TRANSLATION_WRITE);
-        assert(valid_txn_kind);
-        for(int i = 0; i < m_caches.size() - 1; i++)
+        int limit = (int) (m_is_translation_hier ? m_caches.size() - 2 : m_caches.size() - 1);
+        for(int i = 0; i < limit; i++)
         {
-            m_caches[i]->handle_coherence_action(it->second, it->first->m_addr, it->first->m_tid, it->first->m_is_large, 0, (it->first->m_type == DATA_WRITE) ? false : true, false);
+            needs_state_correction = m_caches[i]->handle_coherence_action(it->second, *it->first, 0, false);
+            
+            if(needs_state_correction && !state_corrected)
+            {
+                m_caches[i]->handle_coherence_action(STATE_CORRECTION, *it->first, 0, true);
+                state_corrected = true;
+            }
         }
         
         it = m_coh_act_list.erase(it);

@@ -102,13 +102,26 @@ int main(int argc, const char * argv[])
         }
     }
     
-    tlb_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, TRANSLATION_READ, 0, true);
+    Request req(0xFFFFFFFFFFC0, TRANSLATION_READ, 0, true, 0);
+    
+    RequestStatus r = tlb_hier[0]->lookupAndFillCache(req);
+    std::cout << "Request status = " << r << std::endl;
     tlb_hier[0]->tick();
     tlb_hier[1]->tick();
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    for(int i = 0; i < 10000; i++)
+    req.m_addr = 0x7FFFFFFFFFC0;
+    req.m_core_id = 1;
+    
+    r = tlb_hier[1]->lookupAndFillCache(req);
+    std::cout << "Request status = " << r << std::endl;
+    tlb_hier[0]->tick();
+    tlb_hier[1]->tick();
+    data_hier[0]->tick();
+    data_hier[1]->tick();
+
+    for(int i = 0; i < 237; i++)
     {
         tlb_hier[0]->tick();
         tlb_hier[1]->tick();
@@ -116,54 +129,114 @@ int main(int argc, const char * argv[])
         data_hier[1]->tick();
     }
     
-    /*RequestStatus r = tlb_hier[0]->lookupAndFillCache(0x7FFFFFFFFFC0, TRANSLATION_READ, 0, true);
+    req.m_addr = 0xFFFFFFFFFFC0;
+    req.m_core_id = 1;
+    req.m_type = TRANSLATION_WRITE;
+    
+    r = tlb_hier[1]->lookupAndFillCache(req);
+    std::cout << "Request status = " << r << std::endl;
     tlb_hier[0]->tick();
     tlb_hier[1]->tick();
     data_hier[0]->tick();
-    data_hier[1]->tick();*/
+    data_hier[1]->tick();
     
-    /*data_hier[0]->lookupAndFillCache(0xFFFFFFFFFFC0, DATA_READ);
+    /*Request req(0xFFFFFFFFFFC0, DATA_READ, 0, 0, 0);
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x7FFFFFFFFFC0, DATA_WRITE);
+    req.m_core_id = 0;
+    req.m_addr = 0x7FFFFFFFFFC0;
+    req.m_type = DATA_READ;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x3FFFFFFFFFC0, DATA_WRITE);
+    req.m_core_id = 0;
+    req.m_addr = 0x0FFFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x1FFFFFFFFFC0, DATA_WRITE);
+    req.m_core_id = 0;
+    req.m_addr = 0x7FFFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    RequestStatus r = data_hier[0]->lookupAndFillCache(0x0FFFFFFFFFC0, DATA_WRITE);
-    std::cout << "Request status: " << r << std::endl;
+    req.m_addr = 0x03FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 0;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x0FFFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 0;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
+    for(int i = 0; i < 210; i++)
+    {
+        data_hier[0]->tick();
+        data_hier[1]->tick();
+    }
+    
+    req.m_core_id = 1;
+    req.m_addr = 0x0FFFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    
+    data_hier[1]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x01FFFFFFFFC0, DATA_WRITE);
+    req.m_core_id = 1;
+    req.m_addr = 0x03FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    
+    data_hier[1]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x00FFFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x0FFFFFFFFFC0;
+    req.m_type = DATA_READ;
+    req.m_core_id = 0;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x03FFFFFFFFC0;
+    req.m_type = DATA_READ;
+    req.m_core_id = 0;
+    
+    data_hier[0]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 0;
+    
+    data_hier[1]->lookupAndFillCache(req);
+    data_hier[0]->tick();
+    data_hier[1]->tick();
+    
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 1;
+    
+    data_hier[1]->lookupAndFillCache(req);
     data_hier[0]->tick();
     data_hier[1]->tick();
     
@@ -174,32 +247,56 @@ int main(int argc, const char * argv[])
         data_hier[1]->tick();
     }
     
-    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_READ);
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_READ;
+    req.m_core_id = 0;
+    
+    r = data_hier[0]->lookupAndFillCache(req);
     std::cout << "Request status:" << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[0]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 0;
+    
+    r = data_hier[0]->lookupAndFillCache(req);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_READ);
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_READ;
+    req.m_core_id = 1;
+    
+    r = data_hier[1]->lookupAndFillCache(req);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x007FFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x07FFFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 1;
+    
+    r = data_hier[1]->lookupAndFillCache(req);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x03FFFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x03FFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 1;
+    
+    r = data_hier[1]->lookupAndFillCache(req);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();
     
-    r = data_hier[1]->lookupAndFillCache(0x07FFFFFFFFC0, DATA_WRITE);
+    req.m_addr = 0x07FFFFFFFC0;
+    req.m_type = DATA_WRITE;
+    req.m_core_id = 1;
+    
+    r = data_hier[1]->lookupAndFillCache(req);
     std::cout << "Request status: " << r << std::endl;
     data_hier[0]->tick();
     data_hier[1]->tick();*/
@@ -208,12 +305,16 @@ int main(int argc, const char * argv[])
     data_hier[0]->printContents();
     std::cout << "--------------Core 1 cache end------------" << std::endl;
     
-    /*std::cout << "---------------Core 2 cache---------------" << std::endl;
+    std::cout << "---------------Core 2 cache---------------" << std::endl;
     data_hier[1]->printContents();
-    std::cout << "--------------Core 2 cache end------------" << std::endl;*/
+    std::cout << "--------------Core 2 cache end------------" << std::endl;
     
     std::cout << "--------------Core 1 TLB------------------" << std::endl;
     tlb_hier[0]->printContents();
     std::cout << "-------------Core 1 TLB end-------------" << std::endl;
+    
+    std::cout << "--------------Core 2 TLB------------------" << std::endl;
+    tlb_hier[1]->printContents();
+    std::cout << "-------------Core 2 TLB end-------------" << std::endl;
     
 }

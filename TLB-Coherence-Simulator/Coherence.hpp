@@ -20,10 +20,12 @@ enum CoherenceProtocolEnum {
 class CoherenceProtocol {
 protected:
     CoherenceState coh_state = INVALID;
+    unsigned int m_cache_level = 0;
 public:
-    virtual CoherenceAction setNextCoherenceState(kind txn_kind) = 0;
+    virtual CoherenceAction setNextCoherenceState(kind txn_kind, CoherenceState propagate_coh_state = INVALID) = 0;
     CoherenceState getCoherenceState();
     void forceCoherenceState(CoherenceState coh_state);
+    void set_level(unsigned int cache_level);
     
     friend std::ostream& operator << (std::ostream& out, CoherenceProtocol &c)
     {
@@ -51,7 +53,7 @@ public:
 
 class MOESIProtocol : public CoherenceProtocol {
 public:
-    virtual CoherenceAction setNextCoherenceState(kind txn_kind) final override;
+    virtual CoherenceAction setNextCoherenceState(kind txn_kind, CoherenceState propagate_coh_state = INVALID) final override;
 };
 
 #endif /* Coherence_hpp */

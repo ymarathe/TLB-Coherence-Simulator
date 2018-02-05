@@ -44,6 +44,7 @@ typedef enum {
     BROADCAST_TRANSLATION_WRITE,
     MEMORY_DATA_WRITEBACK,
     MEMORY_TRANSLATION_WRITEBACK,
+    STATE_CORRECTION,
 } CoherenceAction;
 
 typedef enum {
