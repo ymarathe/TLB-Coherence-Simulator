@@ -190,7 +190,6 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             m_repl->updateReplState(index, hit_pos);
         }
         
-        //m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         req.add_callback(m_callback);
         std::unique_ptr<Request> r = std::make_unique<Request>(req);
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency, std::move(r)));
@@ -333,15 +332,9 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     else if((m_cache_sys->is_last_level(m_cache_level) && !is_translation && !m_cache_sys->get_is_translation_hier()) || \
             (m_cache_sys->is_last_level(m_cache_level) && is_translation && (m_cache_sys->get_is_translation_hier())))
     {
-        //TODO:: YMARATHE. Move std::bind elsewhere, performance hit
-        //m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         req.add_callback(m_callback);
         std::unique_ptr<Request> r = std::make_unique<Request>(req);
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency, std::move(r)));
-        
-        //std::cout << "Inserting to memory with total latency = " << (m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency) << std::endl;
-        //std::cout << "In level = " << m_cache_level << ", cache type = " << m_cache_type << ", hier = " << m_cache_sys->get_is_translation_hier() << std::endl;
-        //std::cout << std::hex << m_cache_sys->m_wait_list[(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency)]->m_addr << std::endl;
     }
     //We are in last level of cache hier and translation entry and not doing writeback.
     //Go to L3 TLB.
@@ -415,8 +408,6 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
-    std::cout << "In translation hier = " << m_cache_sys->get_is_translation_hier() << ", Release lock called for = " << std::hex  << r->m_addr << " in level " << m_cache_level << std::endl;
-    
     auto it = m_mshr_entries.find(*r);
     
     if(it != m_mshr_entries.end())
@@ -444,7 +435,6 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
     //We are in L1
     if(m_cache_level == 1 && m_cache_type == DATA_ONLY && !r->is_translation_request())
     {
-        std::cout << "Calling mark_done in ROB for address = " << r->m_addr << std::endl;
         m_core->m_rob->mem_mark_done(*r);
     }
     

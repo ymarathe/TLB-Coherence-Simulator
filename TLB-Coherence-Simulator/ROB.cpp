@@ -36,13 +36,8 @@ unsigned int ROB::retire(uint64_t clk)
         return 0;
     }
     
-    if(m_window[m_commit_ptr].done)
-    {
-        std::cout << "In clk = " << clk << ", commit ptr is done" << std::endl;
-    }
     while(m_window[m_commit_ptr].valid && ((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
     {
-        std::cout << "Advancing commit ptr" << std::endl;
         //Advance commit ptr
         m_window[m_commit_ptr].valid = false;
         m_commit_ptr = (m_commit_ptr + 1) % m_window_size;

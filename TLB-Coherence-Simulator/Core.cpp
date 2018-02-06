@@ -146,9 +146,6 @@ void Core::tick()
     m_tlb_hier->tick();
     m_cache_hier->tick();
     
-    /*std::cout << "In data hier = " << std::dec << m_cache_hier->m_clk << std::endl;
-    std::cout << "In TLB hier = " << std::dec << m_tlb_hier->m_clk << std::endl;*/
-    
     m_num_retired += m_rob->retire(m_clk);
     
     for(std::list<Request>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
@@ -175,7 +172,6 @@ void Core::tick()
         RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
         if(data_req_status != REQUEST_RETRY)
         {
-            std::cout << "Request issued to data hierarchy = " << std::hex << req.m_addr << std::endl;
             it = m_rob->data_hier_issueQ.erase(it);
         }
         else
@@ -184,16 +180,10 @@ void Core::tick()
         }
     }
     
-    /*std::cout << "Tracevec empty? = " << traceVec.empty() << std::endl;
-    std::cout << "ROB can issue? = " << m_rob->can_issue() << std::endl;
-    std::cout << "Waiting instr = " << m_rob->m_num_waiting_instr << std::endl;*/
-    
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
     {
         Request &req = traceVec.front();
-        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
         kind act_req_kind = TRANSLATION_READ;
-        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
         
         if(req.m_is_memory_acc)
         {
@@ -202,9 +192,7 @@ void Core::tick()
             std::swap(act_req_kind, req.m_type);
             if(tlb_req_status != REQUEST_RETRY)
             {
-                std::cout << "Request issued TLB hierarchy for address = " << std::hex << req.m_addr << std::endl;
                 m_rob->issue(req.m_is_memory_acc, req, m_clk);
-                std::cout << m_rob->m_window[0].req->m_addr << std::endl;
                 traceVec.pop_front();
             }
         }
