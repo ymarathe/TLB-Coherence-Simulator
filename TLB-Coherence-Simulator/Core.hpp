@@ -60,6 +60,7 @@ public:
         {
             assert(!cache_hier->get_is_translation_hier());
             assert(tlb_hier->get_is_translation_hier());
+            m_clk = 0;
         }
     
     bool interfaceHier(bool ll_interface_complete);

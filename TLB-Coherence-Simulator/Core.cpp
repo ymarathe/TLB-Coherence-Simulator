@@ -155,8 +155,6 @@ void Core::tick()
     {
         Request &req = *it;
         
-        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
-        
         if(req.m_is_read && req.m_is_translation)
         {
             req.m_type = TRANSLATION_READ;
@@ -194,12 +192,14 @@ void Core::tick()
     {
         Request &req = traceVec.front();
         std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
-        req.m_type = TRANSLATION_READ;
+        kind act_req_kind = TRANSLATION_READ;
         std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
         
         if(req.m_is_memory_acc)
         {
+            std::swap(act_req_kind, req.m_type);
             RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(req);
+            std::swap(act_req_kind, req.m_type);
             if(tlb_req_status != REQUEST_RETRY)
             {
                 std::cout << "Request issued TLB hierarchy for address = " << std::hex << req.m_addr << std::endl;

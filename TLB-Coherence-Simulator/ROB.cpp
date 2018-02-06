@@ -36,8 +36,13 @@ unsigned int ROB::retire(uint64_t clk)
         return 0;
     }
     
-    while(((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
+    if(m_window[m_commit_ptr].done)
     {
+        std::cout << "In clk = " << clk << ", commit ptr is done" << std::endl;
+    }
+    while(m_window[m_commit_ptr].valid && ((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
+    {
+        std::cout << "Advancing commit ptr" << std::endl;
         //Advance commit ptr
         m_window[m_commit_ptr].valid = false;
         m_commit_ptr = (m_commit_ptr + 1) % m_window_size;
@@ -54,7 +59,6 @@ void ROB::mem_mark_done(Request &r)
     {
         if(it->valid && r == *(it->req))
         {
-            std::cout << "In mem_mark_done, request in ROB = " << it->req->m_addr << std::endl;
             it->done = true;
             break;
             
