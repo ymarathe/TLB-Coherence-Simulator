@@ -330,6 +330,10 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
         std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, tid, is_large, core_id, m_callback));
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency, std::move(r)));
+        
+        //std::cout << "Inserting to memory with total latency = " << (m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency) << std::endl;
+        //std::cout << "In level = " << m_cache_level << ", cache type = " << m_cache_type << ", hier = " << m_cache_sys->get_is_translation_hier() << std::endl;
+        //std::cout << std::hex << m_cache_sys->m_wait_list[(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency)]->m_addr << std::endl;
     }
     //We are in last level of cache hier and translation entry and not doing writeback.
     //Go to L3 TLB.
@@ -341,7 +345,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             lower_cache->lookupAndFillCache(req, curr_latency + m_latency_cycles);
         }
     }
- 
+    
     CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
     
     coh_addr = (coh_action == MEMORY_DATA_WRITEBACK || coh_action == MEMORY_TRANSLATION_WRITEBACK) ? cur_addr : addr;
@@ -403,6 +407,8 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
+    std::cout << "Release lock called for = " << std::hex  << r->m_addr << " in level " << m_cache_level << std::endl;
+    
     auto it = m_mshr_entries.find(*r);
     
     if(it != m_mshr_entries.end())
@@ -415,6 +421,7 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
             it->second->m_line->lock = false;
         }
         
+        //If we are in the last level cache and mshr_entry has been made core agnostic, make the upstream request core agnostic.
         if(it->second->m_is_core_agnostic && m_core_id == -1)
             r->m_is_core_agnostic = true;
         
@@ -429,7 +436,12 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
     //We are in L1
     if(m_cache_level == 1 && m_cache_type == DATA_ONLY)
     {
-        m_core->m_rob.mem_mark_done(r->m_addr, r->m_type);
+        m_core->m_rob->mem_mark_done(*r);
+    }
+    
+    if(m_cache_level == 1 && m_cache_type == TRANSLATION_ONLY)
+    {
+        m_core->m_rob->mem_mark_translation_done(*r);
     }
     
     propagate_release_lock(r);
@@ -593,7 +605,8 @@ void Cache::propagate_release_lock(std::unique_ptr<Request> &r)
                     (is_last_data_level && r->m_is_core_agnostic) ||
                     !m_cache_sys->is_last_level(m_cache_level) || is_last_tr_level))
                 {
-                    
+                    //When we go to higher cache from L3 data cache, we lose the address in r.
+                    //So add some memory here and recall.
                     if(is_last_data_level && !addr_memory_init)
                     {
                         addr_memory_init = true;

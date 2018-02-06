@@ -118,6 +118,7 @@ void CacheSys::tick()
         if(m_clk >= it->first)
         {
             //std::cout << "Calling callback with " << it->second << " and for addr " << std::hex << it->second->m_addr << std::endl;
+            std::cout <<  "Clock = " << m_clk << ", Request latency = " << it->first << std::endl;
             it->second->m_callback(it->second);
             it = m_wait_list.erase(it);
         }

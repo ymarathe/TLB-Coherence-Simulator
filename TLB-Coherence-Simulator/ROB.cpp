@@ -8,7 +8,7 @@
 
 #include "ROB.hpp"
 
-bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind, uint64_t clk)
+bool ROB::issue(bool is_memory_access, Request &r, uint64_t clk)
 {
     //Could not issue
     if(m_num_waiting_instr >= m_window_size)
@@ -16,8 +16,7 @@ bool ROB::issue(bool is_memory_access, uint64_t addr, kind txn_kind, uint64_t cl
     
     //Can issue
     m_window[m_issue_ptr].done = false;
-    m_window[m_issue_ptr].addr = addr;
-    m_window[m_issue_ptr].txn_kind = txn_kind;
+    m_window[m_issue_ptr].req = &r;
     m_window[m_issue_ptr].is_memory_access = is_memory_access;
     m_window[m_issue_ptr].clk = clk;
     
@@ -31,6 +30,11 @@ unsigned int ROB::retire(uint64_t clk)
 {
     unsigned int num_retired = 0;
     
+    if(m_num_waiting_instr == 0)
+    {
+        return 0;
+    }
+    
     while(((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
     {
         //Advance commit ptr
@@ -42,14 +46,32 @@ unsigned int ROB::retire(uint64_t clk)
     return num_retired;
 }
 
-void ROB::mem_mark_done(uint64_t addr, kind txn_kind)
+void ROB::mem_mark_done(Request &r)
 {
     for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end(); it++)
     {
-        if((it->addr == addr) && (it->txn_kind == txn_kind))
+        if(r == *(it->req))
         {
             it->done = true;
             break;
         }
     }
+}
+
+void ROB::printContents()
+{
+    for(int i = 0; i < m_window_size; i++)
+    {
+        std::cout << m_window[i];
+    }
+}
+
+bool ROB::can_issue()
+{
+    return (m_num_waiting_instr < m_window_size);
+}
+
+void ROB::mem_mark_translation_done(Request &r)
+{
+    data_hier_issueQ.push_back(r);
 }

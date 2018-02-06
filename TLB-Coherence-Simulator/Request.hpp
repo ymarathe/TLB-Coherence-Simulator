@@ -22,17 +22,21 @@ public:
     uint64_t m_tid;
     bool m_is_large;
     bool m_is_core_agnostic;
+    bool m_is_memory_acc;
     const std::function<void(std::unique_ptr<Request>&)>& m_callback;
     
-    Request(uint64_t addr, kind type, uint64_t tid, bool is_large, unsigned int core_id, const std::function<void(std::unique_ptr<Request>&)>& callback = nullptr) :
+    Request(uint64_t addr, kind type, uint64_t tid, bool is_large, unsigned int core_id, const std::function<void(std::unique_ptr<Request>&)>& callback = nullptr, bool is_memory_acc = true) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
     m_callback(callback),
     m_tid(tid),
     m_is_large(is_large),
-    m_is_core_agnostic(false)
+    m_is_core_agnostic(false),
+    m_is_memory_acc(is_memory_acc)
     {}
+    
+    Request() : Request(0, INVALID_TXN_KIND, 0, 0, 0) {}
     
     bool is_translation_request();
     
@@ -40,6 +44,11 @@ public:
     {
         out << "Addr: " << r.m_addr << ", kind: " << r.m_type <<  ", tid: " << r.m_tid << ", is_large: " << r.m_is_large << ", core: " << r.m_core_id << ", is_agnostic:" << r.m_is_core_agnostic << std::endl;
         return out;
+    }
+    
+    bool operator == (const Request &r)
+    {
+        return ((r.m_addr == m_addr) && (r.m_tid == m_tid) && (r.m_type == m_type) && (r.m_is_large == m_is_large)) && (((r.m_core_id == r.m_core_id) && !r.m_is_core_agnostic && m_is_core_agnostic) || (r.m_is_core_agnostic == m_is_core_agnostic));
     }
     
 };

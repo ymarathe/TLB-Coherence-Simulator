@@ -146,11 +146,52 @@ void Core::tick()
     m_tlb_hier->tick();
     m_cache_hier->tick();
     
-    m_num_retired += m_rob.retire(m_clk);
+    /*std::cout << "In data hier = " << std::dec << m_cache_hier->m_clk << std::endl;
+    std::cout << "In TLB hier = " << std::dec << m_tlb_hier->m_clk << std::endl;*/
     
-    for(int i = 0; i < m_rob.m_issue_width; i++)
+    m_num_retired += m_rob->retire(m_clk);
+    
+    for(std::list<Request>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
     {
-        //Pull stuff out the trace and place it in ROB
+        Request &req = *it;
+        RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+        if(data_req_status != REQUEST_RETRY)
+        {
+            std::cout << "Request issued to data hierarchy = " << std::hex << req.m_addr << std::endl;
+            it = m_rob->data_hier_issueQ.erase(it);
+        }
+        else
+        {
+            it++;
+        }
+    }
+    
+    /*std::cout << "Tracevec empty? = " << traceVec.empty() << std::endl;
+    std::cout << "ROB can issue? = " << m_rob->can_issue() << std::endl;
+    std::cout << "Waiting instr = " << m_rob->m_num_waiting_instr << std::endl;*/
+    
+    for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
+    {
+        Request &req = traceVec.front();
+        kind req_kind = TRANSLATION_READ;
+        if(req.m_is_memory_acc)
+        {
+            std::swap(req_kind, req.m_type);
+            RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(req);
+            std::swap(req_kind, req.m_type);
+            std::cout << "Size check 1 = " << m_tlb_hier->m_wait_list.size() << std::endl;
+            if(tlb_req_status != REQUEST_RETRY)
+            {
+                std::cout << "Request issued TLB hierarchy for address = " << std::hex << req.m_addr << std::endl;
+                m_rob->issue(req.m_is_memory_acc, req, m_clk);
+                traceVec.pop_front();
+            }
+        }
+        else
+        {
+            m_rob->issue(req.m_is_memory_acc, req, m_clk);
+            traceVec.pop_front();
+        }
     }
     
     m_clk++;
@@ -162,4 +203,9 @@ void Core::set_core_id(unsigned int core_id)
     
     m_tlb_hier->set_core_id(core_id);
     m_cache_hier->set_core_id(core_id);
+}
+
+void Core::add_trace(Request &req)
+{
+    traceVec.push_back(req);
 }
