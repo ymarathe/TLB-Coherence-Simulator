@@ -19,16 +19,17 @@ class ROB {
 public:
     class ROBEntry {
     public:
+        bool valid;
         bool is_memory_access;
         Request *req;
         bool done;
         uint64_t clk;
         
-        ROBEntry() : is_memory_access(false), done(false), req(nullptr), clk(0) {}
+        ROBEntry() : valid(false), is_memory_access(false), done(false), req(nullptr), clk(0) {}
         
         friend std::ostream& operator << (std::ostream& out, ROBEntry &r)
         {
-            out << "|" << r.is_memory_access << "|" << r.req << std::dec << "|" << r.done << "|" << std::hex << r.clk << "|" << std::dec << std::endl;
+            out << "|" << r.valid << "|" << r.is_memory_access << "|" << r.req << std::dec << "|" << r.done << "|" << std::hex << r.clk << "|" << std::dec << std::endl;
             return out;
         }
     };

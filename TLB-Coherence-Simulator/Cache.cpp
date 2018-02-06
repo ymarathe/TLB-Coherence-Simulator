@@ -149,7 +149,13 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     kind txn_kind = req.m_type;
     uint64_t tid = req.m_tid;
     bool is_large = req.m_is_large;
-    unsigned int core_id = req.m_core_id;
+    //unsigned int core_id = req.m_core_id;
+    
+    if(!m_is_callback_initialized)
+    {
+        initialize_callback();
+        m_is_callback_initialized = true;
+    }
     
     uint64_t tag = get_tag(addr);
     uint64_t index = get_index(addr);
@@ -184,8 +190,9 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             m_repl->updateReplState(index, hit_pos);
         }
         
-        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, tid, is_large, core_id, m_callback));
+        //m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        req.add_callback(m_callback);
+        std::unique_ptr<Request> r = std::make_unique<Request>(req);
         m_cache_sys->m_hit_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency, std::move(r)));
         
         //Coherence handling
@@ -327,8 +334,9 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             (m_cache_sys->is_last_level(m_cache_level) && is_translation && (m_cache_sys->get_is_translation_hier())))
     {
         //TODO:: YMARATHE. Move std::bind elsewhere, performance hit
-        m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-        std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, txn_kind, tid, is_large, core_id, m_callback));
+        //m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+        req.add_callback(m_callback);
+        std::unique_ptr<Request> r = std::make_unique<Request>(req);
         m_cache_sys->m_wait_list.insert(std::make_pair(m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency, std::move(r)));
         
         //std::cout << "Inserting to memory with total latency = " << (m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency) << std::endl;
@@ -407,7 +415,7 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
-    std::cout << "Release lock called for = " << std::hex  << r->m_addr << " in level " << m_cache_level << std::endl;
+    std::cout << "In translation hier = " << m_cache_sys->get_is_translation_hier() << ", Release lock called for = " << std::hex  << r->m_addr << " in level " << m_cache_level << std::endl;
     
     auto it = m_mshr_entries.find(*r);
     
@@ -434,12 +442,13 @@ void Cache::release_lock(std::unique_ptr<Request>& r)
     }
     
     //We are in L1
-    if(m_cache_level == 1 && m_cache_type == DATA_ONLY)
+    if(m_cache_level == 1 && m_cache_type == DATA_ONLY && !r->is_translation_request())
     {
+        std::cout << "Calling mark_done in ROB for address = " << r->m_addr << std::endl;
         m_core->m_rob->mem_mark_done(*r);
     }
     
-    if(m_cache_level == 1 && m_cache_type == TRANSLATION_ONLY)
+    if(m_cache_level == 1 && m_cache_type == TRANSLATION_ONLY && r->is_translation_request())
     {
         m_core->m_rob->mem_mark_translation_done(*r);
     }
@@ -467,8 +476,9 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
         if(lower_cache != nullptr)
         {
             kind coh_txn_kind = txnKindForCohAction(coh_action);
-            Request req(addr, coh_txn_kind, tid, is_large, m_core_id);
-            lower_cache->lookupAndFillCache(req, curr_latency + m_latency_cycles);
+            r.m_core_id = m_core_id;
+            r.m_type = coh_txn_kind;
+            lower_cache->lookupAndFillCache(r, curr_latency + m_latency_cycles);
         }
     }
     
@@ -482,10 +492,9 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
-                //Inserting dummy TRANSLATION_WRITE and DATA_WRITE requests to decode whether coherence action was actually triggered by a translation request.
-                std::unique_ptr<Request> r = std::make_unique<Request>(Request(addr, INVALID_TXN_KIND, tid, is_large, m_core_id, m_callback));
-                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(std::move(r), coh_action));
+                std::unique_ptr<Request> req = std::make_unique<Request>(r);
+                req->m_core_id = m_core_id;
+                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(std::move(req), coh_action));
             }
         }
         else if(!same_cache_sys)
@@ -527,7 +536,6 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             uint64_t tag = get_tag(addr);
             uint64_t index = get_index(addr);
             std::vector<CacheLine>& set = m_tagStore[index];
-            bool is_translation = (coh_action == BROADCAST_TRANSLATION_WRITE) || (coh_action == BROADCAST_TRANSLATION_READ);
             
             if(is_found(set, tag, is_translation, tid, hit_pos))
             {
@@ -663,4 +671,9 @@ void Cache::set_core_id(unsigned int core_id)
 unsigned int Cache::get_core_id()
 {
     return m_core_id;
+}
+
+void Cache::initialize_callback()
+{
+     m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
 }

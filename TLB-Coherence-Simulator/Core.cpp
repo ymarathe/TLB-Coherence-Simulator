@@ -154,6 +154,26 @@ void Core::tick()
     for(std::list<Request>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
     {
         Request &req = *it;
+        
+        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
+        
+        if(req.m_is_read && req.m_is_translation)
+        {
+            req.m_type = TRANSLATION_READ;
+        }
+        else if(req.m_is_read && !req.m_is_translation)
+        {
+            req.m_type = DATA_READ;
+        }
+        else if(!req.m_is_read && req.m_is_translation)
+        {
+            req.m_type = TRANSLATION_WRITE;
+        }
+        else if(!req.m_is_read && !req.m_is_translation)
+        {
+            req.m_type = DATA_WRITE;
+        }
+
         RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
         if(data_req_status != REQUEST_RETRY)
         {
@@ -173,17 +193,18 @@ void Core::tick()
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
     {
         Request &req = traceVec.front();
-        kind req_kind = TRANSLATION_READ;
+        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
+        req.m_type = TRANSLATION_READ;
+        std::cout << "is_read = " << req.m_is_read << ", is_translation = " << req.m_is_translation << std::endl;
+        
         if(req.m_is_memory_acc)
         {
-            std::swap(req_kind, req.m_type);
             RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(req);
-            std::swap(req_kind, req.m_type);
-            std::cout << "Size check 1 = " << m_tlb_hier->m_wait_list.size() << std::endl;
             if(tlb_req_status != REQUEST_RETRY)
             {
                 std::cout << "Request issued TLB hierarchy for address = " << std::hex << req.m_addr << std::endl;
                 m_rob->issue(req.m_is_memory_acc, req, m_clk);
+                std::cout << m_rob->m_window[0].req->m_addr << std::endl;
                 traceVec.pop_front();
             }
         }

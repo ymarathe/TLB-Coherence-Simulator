@@ -20,12 +20,22 @@ public:
     kind m_type;
     unsigned int m_core_id;
     uint64_t m_tid;
+    //Following two fields are to dispatch request to data hierarchy.
+    //m_is_read | m_is_translation  | Consequence
+    //  0       |       0           | Dispatch DATA_WRITE
+    //  0       |       1           | Dispatch TRANSLATION_WRITE
+    //  1       |       0           | Dispatch DATA_READ
+    //  0       |       1           | Dispacth TRANSLATION_READ
+    //This is necessary because we always do a TRANSLATION_READ before doing memory access.
+    //And once the request bounces back from TLB hierarchy, we need to dispatch the right kind of request to data hierarchy.
+    bool m_is_read;
+    bool m_is_translation;
     bool m_is_large;
     bool m_is_core_agnostic;
     bool m_is_memory_acc;
-    const std::function<void(std::unique_ptr<Request>&)>& m_callback;
+    std::function<void(std::unique_ptr<Request>&)> m_callback;
     
-    Request(uint64_t addr, kind type, uint64_t tid, bool is_large, unsigned int core_id, const std::function<void(std::unique_ptr<Request>&)>& callback = nullptr, bool is_memory_acc = true) :
+    Request(uint64_t addr, kind type, uint64_t tid, bool is_large, unsigned int core_id, std::function<void(std::unique_ptr<Request>&)> callback = nullptr, bool is_memory_acc = true) :
     m_addr(addr),
     m_type(type),
     m_core_id(core_id),
@@ -34,11 +44,31 @@ public:
     m_is_large(is_large),
     m_is_core_agnostic(false),
     m_is_memory_acc(is_memory_acc)
-    {}
+    {
+        if(m_type == DATA_READ || m_type == TRANSLATION_READ)
+        {
+            m_is_read = true;
+        }
+        else if(m_type == DATA_WRITE || m_type == TRANSLATION_WRITE)
+        {
+            m_is_read = false;
+        }
+        
+        if(m_type == DATA_READ || m_type == DATA_WRITE)
+        {
+            m_is_translation = false;
+        }
+        else if(m_type == TRANSLATION_READ || m_type == TRANSLATION_WRITE)
+        {
+            m_is_translation = true;
+        }
+    }
     
     Request() : Request(0, INVALID_TXN_KIND, 0, 0, 0) {}
     
     bool is_translation_request();
+    
+    void add_callback(std::function<void(std::unique_ptr<Request>&)>& callback);
     
     friend std::ostream& operator << (std::ostream &out, const Request &r)
     {

@@ -15,6 +15,7 @@ bool ROB::issue(bool is_memory_access, Request &r, uint64_t clk)
         return false;
     
     //Can issue
+    m_window[m_issue_ptr].valid = true;
     m_window[m_issue_ptr].done = false;
     m_window[m_issue_ptr].req = &r;
     m_window[m_issue_ptr].is_memory_access = is_memory_access;
@@ -38,6 +39,7 @@ unsigned int ROB::retire(uint64_t clk)
     while(((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
     {
         //Advance commit ptr
+        m_window[m_commit_ptr].valid = false;
         m_commit_ptr = (m_commit_ptr + 1) % m_window_size;
         m_num_waiting_instr--;
         num_retired++;
@@ -48,12 +50,18 @@ unsigned int ROB::retire(uint64_t clk)
 
 void ROB::mem_mark_done(Request &r)
 {
-    for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end(); it++)
+    for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end();)
     {
-        if(r == *(it->req))
+        if(it->valid && r == *(it->req))
         {
+            std::cout << "In mem_mark_done, request in ROB = " << it->req->m_addr << std::endl;
             it->done = true;
             break;
+            
+        }
+        else
+        {
+            it++;
         }
     }
 }

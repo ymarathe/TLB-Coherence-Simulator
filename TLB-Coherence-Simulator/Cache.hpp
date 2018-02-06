@@ -68,6 +68,8 @@ private:
     
     unsigned int m_core_id;
     
+    bool m_is_callback_initialized;
+    
 public:
     Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, CacheType cache_type = DATA_ONLY, bool is_large_page_tlb = false, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)
@@ -107,8 +109,11 @@ public:
         m_cache_type = cache_type;
         
         m_is_large_page_tlb = is_large_page_tlb;
+        
+        m_is_callback_initialized = false;
     }
     
+    void initialize_callback();
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);
     uint64_t get_line_offset(const uint64_t addr);
