@@ -180,11 +180,11 @@ RequestStatus CacheSys::lookupAndFillCache(Request &r)
 {
     if(!m_is_translation_hier)
     {
-        return m_caches[0]->lookupAndFillCache(r, 0);
+        return m_caches[0]->lookupAndFillCache(r, m_caches[0]->get_latency_cycles());
     }
     else
     {
-        return (r.m_is_large) ? m_caches[1]->lookupAndFillCache(r) : m_caches[0]->lookupAndFillCache(r);
+        return (r.m_is_large) ? m_caches[1]->lookupAndFillCache(r, m_caches[1]->get_latency_cycles()) : m_caches[0]->lookupAndFillCache(r, m_caches[0]->get_latency_cycles());
     }
 }
 
