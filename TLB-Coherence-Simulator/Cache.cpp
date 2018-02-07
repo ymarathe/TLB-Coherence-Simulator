@@ -196,15 +196,13 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         uint64_t deadline = m_cache_sys->m_clk + curr_latency;
         
         //If element already exists in list, push deadline.
-        if(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
+        while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
         {
-            m_cache_sys->m_hit_list.insert(std::make_pair(deadline + 1, std::move(r)));
+            deadline++;
         }
-        else
-        {
-            m_cache_sys->m_hit_list.insert(std::make_pair(deadline, std::move(r)));
-        }
-        
+    
+        m_cache_sys->m_hit_list.insert(std::make_pair(deadline, std::move(r)));
+
         //Coherence handling
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
         
@@ -346,15 +344,13 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         req.add_callback(m_callback);
         std::unique_ptr<Request> r = std::make_unique<Request>(req);
         uint64_t deadline = m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency;
+        
         //If element already exists in the list, move deadline.
-        if(m_cache_sys->m_wait_list.find(deadline) != m_cache_sys->m_wait_list.end())
+        while(m_cache_sys->m_wait_list.find(deadline) != m_cache_sys->m_wait_list.end())
         {
-            m_cache_sys->m_wait_list.insert(std::make_pair(deadline + 1, std::move(r)));
+            deadline++;
         }
-        else
-        {
-            m_cache_sys->m_wait_list.insert(std::make_pair(deadline, std::move(r)));
-        }
+        m_cache_sys->m_wait_list.insert(std::make_pair(deadline, std::move(r)));
     }
     //We are in last level of cache hier and translation entry and not doing writeback.
     //Go to L3 TLB.
