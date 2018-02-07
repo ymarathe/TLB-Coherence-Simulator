@@ -14,6 +14,7 @@
 #include "ROB.hpp"
 #include "Request.hpp"
 #include <deque>
+#include <list>
 
 class Core {
 private:
@@ -45,7 +46,7 @@ private:
     
     unsigned int m_core_id;
     
-    std::map<uint64_t, AddrMapKey> va2L3TLBAddr;
+    std::map<uint64_t, std::list<AddrMapKey>> va2L3TLBAddr;
     
     std::deque<Request> traceVec;
     
@@ -69,7 +70,7 @@ public:
     
     uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large);
     
-    uint64_t retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb, bool *propagate_access);
+    std::vector<uint64_t> retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb);
     
     std::shared_ptr<Cache> get_lower_cache(uint64_t addr, bool is_translation, bool is_large, unsigned int cache_level, CacheType cache_type);
     

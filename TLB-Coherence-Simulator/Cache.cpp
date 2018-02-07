@@ -227,7 +227,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
     
     //Blocking for L1 TLB access.
-    unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 1 : 16;
+    unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : 16;
     
     //Only if line is valid, we consider it to be an MSHR hit.
     if(mshr_iter != m_mshr_entries.end() && line.valid)
@@ -620,23 +620,33 @@ void Cache::propagate_release_lock(std::unique_ptr<Request> &r)
                     
                     //Are we fully in translation hierarchy? i.e L1 TLB to L2 TLB
                     bool in_translation_hier = (m_cache_type == TRANSLATION_ONLY) && (higher_cache->get_cache_type() == TRANSLATION_ONLY);
-                    
-                    //Assume we propagate access.
-                    bool propagate_access = true;
+                
                     bool is_higher_cache_small_tlb = !higher_cache->get_is_large_page_tlb();
-                    
-                    // If data to translation boundary, obtain reverse mapping
-                    uint64_t access_addr = (is_dat_to_tr_boundary) ? m_core->retrieveAddr(r->m_addr, r->m_tid, r->m_is_large, is_higher_cache_small_tlb, &propagate_access) : r->m_addr;
                     
                     //If we are fully in translation hierarchy, propagate access to the right TLB i.e. small/large
                     //If we are not, propagate access anyway.
-                    propagate_access = (propagate_access) && ((in_translation_hier && (r->m_is_large == !is_higher_cache_small_tlb)) || !in_translation_hier);
+                    bool propagate_access = ((in_translation_hier && (r->m_is_large == !is_higher_cache_small_tlb)) || !in_translation_hier);
                     
-                    //If we need to propagate access, obtain correct address [reverse mapped, or r->m_addr]
-                    r->m_addr = (propagate_access) ? access_addr : r->m_addr;
-                    if(propagate_access)
+                    // If data to translation boundary, obtain reverse mapping
+                    if(is_dat_to_tr_boundary)
                     {
-                        higher_cache->release_lock(r);
+                        std::vector<uint64_t> access_addresses = m_core->retrieveAddr(r->m_addr, r->m_tid, r->m_is_large, is_higher_cache_small_tlb);
+                        for(int i = 0; i < access_addresses.size(); i++)
+                        {
+                            r->m_addr = (propagate_access) ? access_addresses[i] : r->m_addr;
+                            if(propagate_access)
+                            {
+                                higher_cache->release_lock(r);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //If we need to propagate access, obtain correct address [reverse mapped, or r->m_addr]
+                        if(propagate_access)
+                        {
+                            higher_cache->release_lock(r);
+                        }
                     }
                 }
             }

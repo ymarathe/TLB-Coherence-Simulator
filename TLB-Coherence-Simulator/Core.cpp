@@ -77,33 +77,51 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     
     uint64_t l3tlbaddr = l3_tlb_base_address + (set_index * 16 * 4);
     
-    va2L3TLBAddr.insert(std::make_pair(l3tlbaddr, AddrMapKey(va, pid, is_large)));
+    va2L3TLBAddr[l3tlbaddr].push_back(AddrMapKey(va, pid, is_large));
     
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
-uint64_t Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb, bool *propagate_access)
+std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb)
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
-    uint64_t returnval = -1;
+    bool propagate_access = true;
+    std::vector<uint64_t> addresses;
     
-    if(iter != va2L3TLBAddr.end() && pid == iter->second.m_pid && is_large == iter->second.m_is_large)
+    if(iter != va2L3TLBAddr.end())
     {
-        returnval = iter->second.m_addr;
-        //propagate_to_small_tlb = 0, go with large
-        //propagate_to_small_tlb = 1, go with small
-        bool propagate_to_small_tlb = ((returnval & 0x200000) != 0);
-        *propagate_access = (propagate_to_small_tlb == is_higher_cache_small_tlb);
-        if(propagate_access)
+        std::list<AddrMapKey>& entries = iter->second;
+    
+        for(std::list<AddrMapKey>::iterator amk_iter = entries.begin(); amk_iter != entries.end();)
+        {
+            AddrMapKey& val = *amk_iter;
+            if(pid == val.m_pid && is_large == val.m_is_large)
+            {
+                //propagate_to_small_tlb = 0, go with large
+                //propagate_to_small_tlb = 1, go with small
+                bool propagate_to_small_tlb = ((val.m_addr & 0x200000) != 0);
+                propagate_access = (propagate_to_small_tlb == is_higher_cache_small_tlb);
+                if(propagate_access)
+                {
+                    //va2L3TLBAddr.erase(iter);
+                    addresses.push_back(val.m_addr);
+                    amk_iter = entries.erase(amk_iter);
+                }
+                else
+                {
+                    amk_iter++;
+                }
+            }
+        }
+        
+        //If all the entries are to be propagated, remove entry from va2L3TLBAddr
+        if(entries.size() == 0)
         {
             va2L3TLBAddr.erase(iter);
         }
-        return returnval;
     }
     
-    *propagate_access = false;
-    
-    return returnval;
+    return addresses;
 }
 
 std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation, bool is_large, unsigned int level, CacheType cache_type)
@@ -168,7 +186,7 @@ void Core::tick()
         {
             req.m_type = DATA_WRITE;
         }
-
+        
         RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
         if(data_req_status != REQUEST_RETRY)
         {
