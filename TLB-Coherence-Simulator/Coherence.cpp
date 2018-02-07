@@ -76,7 +76,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
@@ -91,7 +91,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -131,7 +131,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else if(txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
@@ -146,7 +146,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -173,7 +173,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
@@ -188,7 +188,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
@@ -215,7 +215,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if (txn_kind == DATA_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else if (txn_kind == DATA_WRITEBACK || txn_kind == TRANSLATION_WRITEBACK)
@@ -230,7 +230,7 @@ CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceSta
             }
             else if(txn_kind == TRANSLATION_WRITE)
             {
-                next_coh_state = MODIFIED;
+                next_coh_state = EXCLUSIVE;
                 coh_action = NONE;
             }
             else
