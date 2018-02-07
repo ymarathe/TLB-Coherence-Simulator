@@ -108,12 +108,12 @@ int main(int argc, const char * argv[])
     cores[0]->tick();
     cores[1]->tick();
     
-    cores[1]->add_trace(req);
-    cores[0]->tick();
-    cores[1]->tick();
+    //cores[1]->add_trace(req);
+    //cores[0]->tick();
+    //cores[1]->tick();
     
     req.m_addr = 0x7FFFFFFFFFC0;
-    req.m_type = DATA_WRITE;
+    req.update_request_type(DATA_WRITE);
     
     cores[0]->add_trace(req);
     cores[0]->tick();
@@ -124,6 +124,19 @@ int main(int argc, const char * argv[])
         cores[0]->tick();
         cores[1]->tick();
     }
+    
+    /*cores[0]->add_trace(req);
+    cores[0]->tick();
+    cores[1]->tick();
+    
+    cores[0]->tick();
+    cores[1]->tick();
+    
+    cores[0]->tick();
+    cores[1]->tick();
+    
+    cores[0]->tick();
+    cores[1]->tick();*/
     
     std::cout << "---------Core 0 ROB----------" << std::endl;
     cores[0]->m_rob->printContents();

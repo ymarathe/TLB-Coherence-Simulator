@@ -17,3 +17,31 @@ void Request::add_callback(std::function<void (std::unique_ptr<Request> &)>& cal
 {
     m_callback = callback;
 }
+
+void Request::update_request_type(kind txn_kind)
+{
+    m_type = txn_kind;
+    
+    if(m_type == DATA_READ || m_type == TRANSLATION_READ)
+    {
+        m_is_read = true;
+    }
+    else if(m_type == DATA_WRITE || m_type == TRANSLATION_WRITE)
+    {
+        m_is_read = false;
+    }
+    
+    if(m_type == DATA_READ || m_type == DATA_WRITE)
+    {
+        m_is_translation = false;
+    }
+    else if(m_type == TRANSLATION_READ || m_type == TRANSLATION_WRITE)
+    {
+        m_is_translation = true;
+    }
+}
+
+void Request::update_request_type_from_core(kind txn_kind)
+{
+    m_type = txn_kind;
+}

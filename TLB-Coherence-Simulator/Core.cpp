@@ -172,19 +172,19 @@ void Core::tick()
         
         if(req.m_is_read && req.m_is_translation)
         {
-            req.m_type = TRANSLATION_READ;
+            req.update_request_type_from_core(TRANSLATION_READ);
         }
         else if(req.m_is_read && !req.m_is_translation)
         {
-            req.m_type = DATA_READ;
+            req.update_request_type_from_core(DATA_READ);
         }
         else if(!req.m_is_read && req.m_is_translation)
         {
-            req.m_type = TRANSLATION_WRITE;
+            req.update_request_type_from_core(TRANSLATION_WRITE);
         }
         else if(!req.m_is_read && !req.m_is_translation)
         {
-            req.m_type = DATA_WRITE;
+            req.update_request_type_from_core(DATA_WRITE);
         }
         
         RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
@@ -201,13 +201,13 @@ void Core::tick()
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
     {
         Request &req = traceVec.front();
-        kind act_req_kind = TRANSLATION_READ;
+        kind act_req_kind = req.m_type;
         
         if(req.m_is_memory_acc)
         {
-            std::swap(act_req_kind, req.m_type);
+            req.update_request_type_from_core(TRANSLATION_READ);
             RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(req);
-            std::swap(act_req_kind, req.m_type);
+            req.update_request_type_from_core(act_req_kind);
             if(tlb_req_status != REQUEST_RETRY)
             {
                 m_rob->issue(req.m_is_memory_acc, req, m_clk);

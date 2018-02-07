@@ -29,7 +29,7 @@ public:
         
         friend std::ostream& operator << (std::ostream& out, ROBEntry &r)
         {
-            out << "|" << r.valid << "|" << r.is_memory_access << "|" << r.req << std::dec << "|" << r.done << "|" << std::hex << r.clk << "|" << std::dec << std::endl;
+            out << "|" << r.valid << "|" << r.is_memory_access << "|" << r.req << std::dec << "|" << r.done << "|" << std::dec << r.clk << "|" << std::dec << std::endl;
             return out;
         }
     };

@@ -45,28 +45,16 @@ public:
     m_is_core_agnostic(false),
     m_is_memory_acc(is_memory_acc)
     {
-        if(m_type == DATA_READ || m_type == TRANSLATION_READ)
-        {
-            m_is_read = true;
-        }
-        else if(m_type == DATA_WRITE || m_type == TRANSLATION_WRITE)
-        {
-            m_is_read = false;
-        }
-        
-        if(m_type == DATA_READ || m_type == DATA_WRITE)
-        {
-            m_is_translation = false;
-        }
-        else if(m_type == TRANSLATION_READ || m_type == TRANSLATION_WRITE)
-        {
-            m_is_translation = true;
-        }
+        update_request_type(m_type);
     }
     
     Request() : Request(0, INVALID_TXN_KIND, 0, 0, 0) {}
     
     bool is_translation_request();
+    
+    void update_request_type(kind txn_kind);
+    
+    void update_request_type_from_core(kind txn_kind);
     
     void add_callback(std::function<void(std::unique_ptr<Request>&)>& callback);
     
@@ -78,7 +66,7 @@ public:
     
     bool operator == (const Request &r)
     {
-        return ((r.m_addr == m_addr) && (r.m_tid == m_tid) && (r.m_type == m_type) && (r.m_is_large == m_is_large)) && (((r.m_core_id == r.m_core_id) && !r.m_is_core_agnostic && m_is_core_agnostic) || (r.m_is_core_agnostic == m_is_core_agnostic));
+        return ((r.m_addr == m_addr) && (r.m_tid == m_tid) && (r.m_type == m_type) && (r.m_is_large == m_is_large)) && ((!r.m_is_core_agnostic && !m_is_core_agnostic) ? (r.m_core_id == m_core_id) : true);
     }
     
 };

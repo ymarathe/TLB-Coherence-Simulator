@@ -102,6 +102,7 @@ void CacheSys::tick()
     {
         if(m_clk >= it->first)
         {
+            it->second->m_callback(it->second);
             it = m_hit_list.erase(it);
         }
         else
