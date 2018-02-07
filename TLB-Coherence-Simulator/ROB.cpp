@@ -21,6 +21,14 @@ bool ROB::issue(bool is_memory_access, Request &r, uint64_t clk)
     m_window[m_issue_ptr].is_memory_access = is_memory_access;
     m_window[m_issue_ptr].clk = clk;
     
+    if(is_memory_access)
+    {
+        kind act_txn_kind = r.m_type;
+        r.update_request_type_from_core(TRANSLATION_READ);
+        data_hier_issueQ[r] = false;
+        r.update_request_type_from_core(act_txn_kind);
+    }
+    
     m_issue_ptr = (m_issue_ptr + 1) % m_window_size;
     m_num_waiting_instr++;
     
@@ -80,5 +88,5 @@ bool ROB::can_issue()
 
 void ROB::mem_mark_translation_done(Request &r)
 {
-    data_hier_issueQ.push_back(r);
+    data_hier_issueQ[r] = true;
 }

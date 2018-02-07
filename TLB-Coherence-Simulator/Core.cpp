@@ -77,7 +77,15 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     
     uint64_t l3tlbaddr = l3_tlb_base_address + (set_index * 16 * 4);
     
-    va2L3TLBAddr[l3tlbaddr].push_back(AddrMapKey(va, pid, is_large));
+    if(va2L3TLBAddr.find(l3tlbaddr) != va2L3TLBAddr.end())
+    {
+        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, is_large));
+    }
+    else
+    {
+        va2L3TLBAddr[l3tlbaddr] = {};
+        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, is_large));
+    }
     
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
@@ -86,16 +94,15 @@ std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool 
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
     bool propagate_access = true;
-    std::vector<uint64_t> addresses;
+    std::vector<uint64_t> addresses = {};
     
     if(iter != va2L3TLBAddr.end())
     {
-        std::list<AddrMapKey>& entries = iter->second;
     
-        for(std::list<AddrMapKey>::iterator amk_iter = entries.begin(); amk_iter != entries.end();)
+        for(std::set<AddrMapKey>::iterator amk_iter = iter->second.begin(); amk_iter != iter->second.end();)
         {
-            AddrMapKey& val = *amk_iter;
-            if(pid == val.m_pid && is_large == val.m_is_large)
+            AddrMapKey val = *amk_iter;
+            if(is_large == val.m_is_large)
             {
                 //propagate_to_small_tlb = 0, go with large
                 //propagate_to_small_tlb = 1, go with small
@@ -105,17 +112,21 @@ std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool 
                 {
                     //va2L3TLBAddr.erase(iter);
                     addresses.push_back(val.m_addr);
-                    amk_iter = entries.erase(amk_iter);
+                    amk_iter = iter->second.erase(amk_iter);
                 }
                 else
                 {
                     amk_iter++;
                 }
             }
+            else
+            {
+                amk_iter++;
+            }
         }
         
         //If all the entries are to be propagated, remove entry from va2L3TLBAddr
-        if(entries.size() == 0)
+        if(iter->second.size() == 0)
         {
             va2L3TLBAddr.erase(iter);
         }
@@ -166,9 +177,10 @@ void Core::tick()
     
     m_num_retired += m_rob->retire(m_clk);
     
-    for(std::list<Request>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
+    for(std::map<Request, bool>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
     {
-        Request &req = *it;
+        Request req = it->first;
+        bool can_issue = it->second;
         
         if(req.m_is_read && req.m_is_translation)
         {
@@ -187,15 +199,23 @@ void Core::tick()
             req.update_request_type_from_core(DATA_WRITE);
         }
         
-        RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
-        if(data_req_status != REQUEST_RETRY)
+        if(can_issue)
         {
-            it = m_rob->data_hier_issueQ.erase(it);
+            RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+            if(data_req_status != REQUEST_RETRY)
+            {
+                it = m_rob->data_hier_issueQ.erase(it);
+            }
+            else
+            {
+                it++;
+            }
         }
         else
         {
             it++;
         }
+       
     }
     
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)

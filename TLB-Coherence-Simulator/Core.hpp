@@ -15,6 +15,7 @@
 #include "Request.hpp"
 #include <deque>
 #include <list>
+#include <set>
 
 class Core {
 private:
@@ -22,15 +23,27 @@ private:
     class AddrMapKey {
     public:
         uint64_t m_addr;
-        uint64_t m_pid;
         bool m_is_large;
         
-        AddrMapKey(uint64_t addr, uint64_t pid, bool is_large) : m_addr(addr), m_pid(pid), m_is_large(is_large) {}
+        AddrMapKey(uint64_t addr, bool is_large) : m_addr(addr), m_is_large(is_large) {}
         
         friend std::ostream& operator << (std::ostream& out, AddrMapKey &a)
         {
-            out << "|" << a.m_addr << "|" << a.m_pid << "|" << a.m_is_large << "|" << std::endl;
+            out << "|" << a.m_addr << "|" << a.m_is_large << "|" << std::endl;
             return out;
+        }
+    };
+    
+    class AddrMapComparator {
+    public:
+        bool operator () (const AddrMapKey &a, const AddrMapKey &b) const
+        {
+            if(a.m_addr < b.m_addr)
+                return true;
+            if(a.m_is_large < b.m_is_large)
+                return true;
+            
+            return false;
         }
     };
     
@@ -46,7 +59,7 @@ private:
     
     unsigned int m_core_id;
     
-    std::map<uint64_t, std::list<AddrMapKey>> va2L3TLBAddr;
+    std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
     
     std::deque<Request> traceVec;
     

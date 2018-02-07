@@ -12,6 +12,7 @@
 #include<iostream>
 #include<vector>
 #include<list>
+#include<map>
 #include "utils.hpp"
 #include "Request.hpp"
 
@@ -42,7 +43,7 @@ public:
     unsigned int m_num_waiting_instr = 0;
     unsigned int m_window_size = 128;
     
-    std::list<Request> data_hier_issueQ;
+    std::map<Request, bool, RequestComparator> data_hier_issueQ;
     
     ROB(unsigned int window_size = 16, unsigned int issue_width = 4, unsigned int retire_width = 4) : m_window_size(window_size),
         m_issue_width(issue_width),
