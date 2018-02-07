@@ -15,6 +15,7 @@
 		D64DD8421FD915E800C3B9C0 /* ReplPolicy.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD8401FD915E800C3B9C0 /* ReplPolicy.cpp */; };
 		D64DD8471FD9454E00C3B9C0 /* CacheSys.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D64DD8451FD9454E00C3B9C0 /* CacheSys.cpp */; };
 		D66815A51FE3309800DFF8CA /* Core.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D66815A31FE3309800DFF8CA /* Core.cpp */; };
+		D67FA9B6202B8D7100B35CE5 /* TraceProcessor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D67FA9B4202B8D7100B35CE5 /* TraceProcessor.cpp */; };
 		D69434ED1FDF3D7700DE361C /* Request.cpp in Sources */ = {isa = PBXBuildFile; fileRef = D69434EB1FDF3D7700DE361C /* Request.cpp */; };
 /* End PBXBuildFile section */
 
@@ -48,6 +49,8 @@
 		D64DD8461FD9454E00C3B9C0 /* CacheSys.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = CacheSys.hpp; sourceTree = "<group>"; };
 		D66815A31FE3309800DFF8CA /* Core.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Core.cpp; sourceTree = "<group>"; };
 		D66815A41FE3309800DFF8CA /* Core.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Core.hpp; sourceTree = "<group>"; };
+		D67FA9B4202B8D7100B35CE5 /* TraceProcessor.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = TraceProcessor.cpp; sourceTree = "<group>"; };
+		D67FA9B5202B8D7100B35CE5 /* TraceProcessor.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TraceProcessor.hpp; sourceTree = "<group>"; };
 		D69434EB1FDF3D7700DE361C /* Request.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = Request.cpp; sourceTree = "<group>"; };
 		D69434EC1FDF3D7700DE361C /* Request.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Request.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -92,6 +95,8 @@
 			isa = PBXGroup;
 			children = (
 				D64DD8331FD90E3100C3B9C0 /* main.cpp */,
+				D67FA9B4202B8D7100B35CE5 /* TraceProcessor.cpp */,
+				D67FA9B5202B8D7100B35CE5 /* TraceProcessor.hpp */,
 				D62FCAB81FF6ECB2008C52CC /* Coherence.cpp */,
 				D62FCAB91FF6ECB2008C52CC /* Coherence.hpp */,
 				D64DD83A1FD90E5900C3B9C0 /* Cache.cpp */,
@@ -175,6 +180,7 @@
 				D64DD8421FD915E800C3B9C0 /* ReplPolicy.cpp in Sources */,
 				D66815A51FE3309800DFF8CA /* Core.cpp in Sources */,
 				D69434ED1FDF3D7700DE361C /* Request.cpp in Sources */,
+				D67FA9B6202B8D7100B35CE5 /* TraceProcessor.cpp in Sources */,
 				D62FCABD1FFE7717008C52CC /* ROB.cpp in Sources */,
 				D64DD8341FD90E3100C3B9C0 /* main.cpp in Sources */,
 				D64DD8471FD9454E00C3B9C0 /* CacheSys.cpp in Sources */,

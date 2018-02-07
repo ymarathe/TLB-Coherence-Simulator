@@ -67,7 +67,23 @@ typedef enum {
     DATA_AND_TRANSLATION,
 } CacheType;
 
+typedef struct {
+    bool     large;
+    uint64_t ts;
+    uint64_t va;
+    int      write;
+} trace_tlb_entry_t;
+
+typedef struct {
+    bool     large;
+    uint64_t ts;
+    uint64_t va;
+    int      write;
+    uint64_t tid;
+} trace_tlb_tid_entry_t;
+
 kind txnKindForCohAction(CoherenceAction coh_action);
 
+std::string trim(const std::string& str);
 
 #endif /* utils_hpp */

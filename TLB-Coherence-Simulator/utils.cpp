@@ -39,3 +39,24 @@ kind txnKindForCohAction(CoherenceAction coh_action)
             return INVALID_TXN_KIND;
     }
 }
+
+std::string trim(const std::string& str)
+{
+    std::string out;
+    int i = 0;
+    int l = (int) str.length();
+    while ((i < l) && ((str[i] == ' ') || (str[i] == '\t')))
+        i++;
+    
+    out = str.substr(i);
+    
+    l = (int) out.length();
+    i = (l - 1);
+    while (i >= 0)
+    {
+        if ((out[i] == ' ') || (out[i] == '\t')) i--;
+        else break;
+    }
+    out = out.substr(0,i+1);
+    return out;
+}
