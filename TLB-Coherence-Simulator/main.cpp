@@ -120,11 +120,24 @@ int main(int argc, const char * argv[])
     cores[0]->tick();
     cores[1]->tick();
     
+    req.m_addr = 0x7FFFFFFFFFC0;
+    req.m_core_id = 1;
+    req.update_request_type(DATA_READ);
+    
+    cores[1]->add_trace(req);
+    cores[0]->tick();
+    cores[1]->tick();
+    
+    cores[1]->add_trace(req);
+    cores[0]->tick();
+    cores[1]->tick();
+    
     for(int i = 0; i < 1000; i++)
     {
         cores[0]->tick();
         cores[1]->tick();
     }
+    
     
     /*cores[0]->add_trace(req);
     cores[0]->tick();

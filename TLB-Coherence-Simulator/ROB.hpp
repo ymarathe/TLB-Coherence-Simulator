@@ -43,7 +43,7 @@ public:
     unsigned int m_num_waiting_instr = 0;
     unsigned int m_window_size = 128;
     
-    std::map<Request, bool, RequestComparator> data_hier_issueQ;
+    std::multimap<Request, bool, RequestComparator> is_request_ready;
     
     ROB(unsigned int window_size = 16, unsigned int issue_width = 4, unsigned int retire_width = 4) : m_window_size(window_size),
         m_issue_width(issue_width),

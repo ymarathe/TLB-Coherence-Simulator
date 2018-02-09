@@ -177,7 +177,7 @@ void Core::tick()
     
     m_num_retired += m_rob->retire(m_clk);
     
-    for(std::map<Request, bool>::iterator it = m_rob->data_hier_issueQ.begin(); it != m_rob->data_hier_issueQ.end();)
+    for(std::multimap<Request, bool>::iterator it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end();)
     {
         Request req = it->first;
         bool can_issue = it->second;
@@ -204,7 +204,8 @@ void Core::tick()
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
             if(data_req_status != REQUEST_RETRY)
             {
-                it = m_rob->data_hier_issueQ.erase(it);
+                it = m_rob->is_request_ready.erase(it);
+                break;
             }
             else
             {

@@ -25,7 +25,7 @@ bool ROB::issue(bool is_memory_access, Request &r, uint64_t clk)
     {
         kind act_txn_kind = r.m_type;
         r.update_request_type_from_core(TRANSLATION_READ);
-        data_hier_issueQ[r] = false;
+        is_request_ready.insert(std::pair<Request, bool>(r, false));
         r.update_request_type_from_core(act_txn_kind);
     }
     
@@ -64,8 +64,7 @@ void ROB::mem_mark_done(Request &r)
         if(it->valid && r == *(it->req))
         {
             it->done = true;
-            break;
-            
+            it++;
         }
         else
         {
@@ -89,5 +88,9 @@ bool ROB::can_issue()
 
 void ROB::mem_mark_translation_done(Request &r)
 {
-    data_hier_issueQ[r] = true;
+    auto entries = is_request_ready.equal_range(r);
+    for(auto it = entries.first; it != entries.second; it++)
+    {
+        it->second = true;
+    }
 }
