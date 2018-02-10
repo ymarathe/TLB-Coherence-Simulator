@@ -13,6 +13,7 @@
 #include "utils.hpp"
 #include <fstream>
 #include "Request.hpp"
+#include <cstring>
 
 class TraceProcessor {
 

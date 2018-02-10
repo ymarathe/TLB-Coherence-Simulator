@@ -12,6 +12,7 @@
 #include "ROB.hpp"
 #include "Core.hpp"
 #include "TraceProcessor.hpp"
+#include <memory>
 
 #define NUM_CORES 1
 #define NUM_INSTRUCTIONS 100

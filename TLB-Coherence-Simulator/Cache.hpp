@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <memory>
 #include "utils.hpp"
 #include "ReplPolicy.hpp"
 #include "CacheLine.h"

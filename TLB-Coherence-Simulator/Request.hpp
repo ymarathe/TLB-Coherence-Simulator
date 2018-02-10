@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <functional>
+#include <memory>
 #include "utils.hpp"
 
 class Request {

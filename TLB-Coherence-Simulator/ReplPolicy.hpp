@@ -11,6 +11,8 @@
 
 #include <iostream>
 #include <vector>
+#include <iterator>
+#include <algorithm>
 #include "CacheLine.h"
 
 //Placeholder class for replacement state
