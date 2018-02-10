@@ -12,6 +12,7 @@
 #include <iostream>
 #include "utils.hpp"
 #include <fstream>
+#include "Request.hpp"
 
 class TraceProcessor {
 
@@ -24,7 +25,9 @@ private:
     bool *used_up, *empty_file;
     uint64_t *entry_count;
     unsigned int num_cores;
-    uint64_t global_index;
+    int global_index;
+    uint64_t *last_ts;
+    uint64_t *curr_ts;
     
 public:
     
@@ -46,6 +49,9 @@ public:
         used_up = new bool [num_cores];
         empty_file = new bool [num_cores];
         entry_count = new uint64_t [num_cores];
+        
+        last_ts = new uint64_t [num_cores];
+        curr_ts = new uint64_t [num_cores];
     }
     
     //Methods
@@ -55,7 +61,9 @@ public:
     
     void verifyOpenTraceFiles();
     
-    uint64_t getNextEntry();
+    int getNextEntry();
+    
+    Request generateRequest();
     
 };
 

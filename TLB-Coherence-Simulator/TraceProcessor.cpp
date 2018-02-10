@@ -104,9 +104,9 @@ void TraceProcessor::verifyOpenTraceFiles()
     }
 }
 
-uint64_t TraceProcessor::getNextEntry()
+int TraceProcessor::getNextEntry()
 {
-    uint64_t index = -1;
+    int index = -1;
     uint64_t least = 0xffffffffffffffff;
     
     if(!strcasecmp(fmt,"-m"))
@@ -175,4 +175,46 @@ uint64_t TraceProcessor::getNextEntry()
     }
     
     return index;
+}
+
+Request TraceProcessor::generateRequest()
+{
+    int idx = getNextEntry();
+    uint64_t va, tid;
+    bool is_large, is_write;
+    bool is_multicore = strcasecmp(fmt, "-m") == 0;
+    
+    if(idx != -1)
+    {
+        if (is_multicore)
+        {
+            va = buf1[idx].va;
+            is_large = buf1[idx].large;
+            is_write = (bool)((buf1[idx].write != 0)? true: false);
+            last_ts[idx] = buf1[idx].ts;
+        }
+        else
+        {
+            va = buf2[0].va;
+            is_large = buf2[0].large;
+            is_write = (bool)((buf2[0].write!=0)? true: false);
+            tid = buf2[0].tid;
+            last_ts[idx] = buf2[0].ts;
+        }
+        
+        if(curr_ts[idx] >= last_ts[idx])
+        {
+            //TODO: ymarathe:: thread id is the same as core id right now.
+            //Hyperthreading?
+            Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+            last_ts[idx]++;
+            return req;
+        }
+        else
+        {
+            last_ts[idx]++;
+        }
+    }
+    
+    return Request();
 }
