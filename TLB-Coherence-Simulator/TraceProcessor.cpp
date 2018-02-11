@@ -210,22 +210,22 @@ Request TraceProcessor::generateRequest()
             is_write = (bool)((buf1[idx].write != 0)? true: false);
             curr_ts[idx] = buf1[idx].ts;
 
-	    if(curr_ts[idx] == last_ts[idx])
-	    {
-	        //TODO: ymarathe:: thread id is the same as core id right now.
-	        //Hyperthreading?
-	        Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-	        last_ts[idx]++;
-	        used_up[idx] = true;
-	        return req;
-	    }
-	    else if(curr_ts[idx] > last_ts[idx])
-	    {
-	        Request req;
-	        req.m_is_memory_acc = false;
-	        last_ts[idx]++;
-	        return req;
-	    }
+            if(curr_ts[idx] == last_ts[idx])
+            {
+                //TODO: ymarathe:: thread id is the same as core id right now.
+                //Hyperthreading?
+                Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+                last_ts[idx]++;
+                used_up[idx] = true;
+                return req;
+            }
+            else if(curr_ts[idx] > last_ts[idx])
+            {
+                Request req;
+                req.m_is_memory_acc = false;
+                last_ts[idx]++;
+                return req;
+            }
         }
         else
         {
@@ -235,22 +235,22 @@ Request TraceProcessor::generateRequest()
             tid = buf2[0].tid;
             curr_ts[0] = buf2[0].ts;
 
-	    if(curr_ts[0] == last_ts[idx])
-	    {
-	        //TODO: ymarathe:: thread id is the same as core id right now.
-	        //Hyperthreading?
-	        Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-	        last_ts[idx]++;
-	        return req;
-	    }
+            if(curr_ts[0] == last_ts[idx])
+            {
+                //TODO: ymarathe:: thread id is the same as core id right now.
+                //Hyperthreading?
+                Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+                last_ts[idx]++;
+                return req;
+            }
 
-	    else if(curr_ts[0] > last_ts[idx])
-	    {
-	        Request req;
-	        req.m_is_memory_acc = false;
-	        last_ts[idx]++;
-	        return req;
-	    }
+            else if(curr_ts[0] > last_ts[idx])
+            {
+                Request req;
+                req.m_is_memory_acc = false;
+                last_ts[idx]++;
+                return req;
+            }
         }
     }
     
