@@ -29,6 +29,7 @@ private:
     int global_index;
     uint64_t *last_ts;
     uint64_t *curr_ts;
+    uint64_t warmup_period = 10000000000;
     
 public:
     
@@ -53,6 +54,11 @@ public:
         
         last_ts = new uint64_t [num_cores];
         curr_ts = new uint64_t [num_cores];
+
+	for(int i = 0; i < num_cores; i++)
+	{
+		last_ts[i] = warmup_period;
+	}
     }
     
     //Methods

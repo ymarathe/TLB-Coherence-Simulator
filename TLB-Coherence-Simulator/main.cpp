@@ -14,15 +14,15 @@
 #include "TraceProcessor.hpp"
 #include <memory>
 
-#define NUM_CORES 1
-#define NUM_INSTRUCTIONS 100
+#define NUM_CORES 8
+#define NUM_INSTRUCTIONS 10
 
 int main(int argc, char * argv[])
 {
     int num_args = 1;
     int num_real_args = num_args + 1;
     
-    TraceProcessor tp(1);
+    TraceProcessor tp(NUM_CORES);
     if (argc < num_real_args)
     {
         std::cout << "Program takes " << num_args << " arguments" << std::endl;
@@ -124,5 +124,9 @@ int main(int argc, char * argv[])
             }
         }
     }
-    
+    for(int i = 0; i < NUM_INSTRUCTIONS; i++)
+    {
+        Request r = tp.generateRequest();
+        std::cout << std::hex << r << std::dec;
+    }
 }
