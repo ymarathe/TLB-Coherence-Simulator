@@ -78,7 +78,7 @@ void TraceProcessor::parseAndSetupInputs(char *input_cfg)
             std::cout <<"Warning! Unknown entry: " << str << " found in cfg file. Exiting..."<< std::endl;
     }
     
-    if (strcasecmp(fmt, "-m")!=0)
+    if (strcasecmp(fmt, "-m") != 0)
     {
         for (int i = 0;i < num_cores; i++)
         {
@@ -102,23 +102,22 @@ void TraceProcessor::verifyOpenTraceFiles()
             exit(0);
         }
     }
-    if (strcasecmp(fmt, "-m")==0)
+    for (int i = 0;i < num_cores; i++)
     {
-        for (int i=0;i<num_cores;i++)
+    	
+        if (strcasecmp(fmt, "-m") == 0)
         {
-            fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i]);
-            used_up[i] = false;
-            empty_file[i] = false;
+        	fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i]);
         }
+        else
+        {
+        	fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i]);
+        }
+        used_up[i] = false;
+        empty_file[i] = false;
     }
-    if (strcasecmp(fmt, "-m")==0)
-    {
-        for (int i=0;i<num_cores; i++) entry_count[i]=1;
-    }
-    else
-    {
-        for (int i=0;i<num_cores; i++) entry_count[i]=0;
-    }
+
+    for (int i = 0;i < num_cores; i++) entry_count[i] = 1;
 }
 
 int TraceProcessor::getNextEntry()
@@ -126,75 +125,58 @@ int TraceProcessor::getNextEntry()
     int index = -1;
     uint64_t least = 0xffffffffffffffff;
     
-    if(!strcasecmp(fmt,"-m"))
+    for(int i = 0; i < num_cores; i++)
     {
-        for(int i = 0; i < num_cores; i++)
+        if(used_up[i])
         {
-            if(used_up[i])
+            // if not end-of-file, fill next entry
+            if(!empty_file[i])
             {
-                // if not end-of-file, fill next entry
-                if(!empty_file[i])
+                if (!feof(trace_fp[i]))
                 {
-                    if (!feof(trace_fp[i]))
+                    if (strcasecmp(fmt, "-m") == 0)
                     {
-                        if (strcasecmp(fmt, "-m") == 0)
-                        {
-                            fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i] );
-                        }
-                        else
-                        {
-                            fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i] );
-                        }
-                        used_up[i] = false;
-                        entry_count[i]++;
+                        fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i] );
                     }
                     else
                     {
-                        std::cout << " Done with core " << i << std::endl;
-                        empty_file[i] = true;
+                        fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i] );
                     }
-                }
-            }
-            if (!empty_file[i])
-            {
-                if (strcasecmp(fmt, "-m") == 0)
-                {
-                    if (buf1[i].ts < least)
-                    {
-                        least = buf1[i].ts;
-                        index = i;
-                    }
+                    used_up[i] = false;
+                    entry_count[i]++;
                 }
                 else
                 {
-                    if (buf2[i].ts < least)
-                    {
-                        least = buf2[i].ts;
-                        index = i;
-                    }
+                    std::cout << " Done with core " << i << std::endl;
+                    empty_file[i] = true;
                 }
             }
         }
-    }
-    else
-    {
-        // there's just one file.
-        if(getc(trace_fp[0]) == EOF)
-            index = -1;
-        else
+        if (!empty_file[i])
         {
-            fread ((void*)&buf2[0], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[0] );
-            global_index = (++global_index) % num_cores;
-            index = global_index;
-            
-            std::cout << "is_large::" << buf2[0].large << std::endl;
+            if (strcasecmp(fmt, "-m") == 0)
+            {
+                if (buf1[i].ts < least)
+                {
+                    least = buf1[i].ts;
+                    index = i;
+                }
+            }
+            else
+            {
+                if (buf2[i].ts < least)
+                {
+                    least = buf2[i].ts;
+                    index = i;
+                }
+            }
         }
     }
     
     return index;
 }
 
-Request TraceProcessor::generateRequest()
+Request& TraceProcessor::generateRequest()
 {
     int idx = getNextEntry();
     uint64_t va, tid;
@@ -214,45 +196,52 @@ Request TraceProcessor::generateRequest()
             {
                 //TODO: ymarathe:: thread id is the same as core id right now.
                 //Hyperthreading?
-                Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+                //Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+		Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 last_ts[idx]++;
                 used_up[idx] = true;
-                return req;
+                return *req;
             }
             else if(curr_ts[idx] > last_ts[idx])
             {
-                Request req;
-                req.m_is_memory_acc = false;
+                Request *req = new Request();
+                req->m_is_memory_acc = false;
+		req->m_core_id = idx;
                 last_ts[idx]++;
-                return req;
+                return *req;
             }
         }
         else
         {
-            va = buf2[0].va;
-            is_large = buf2[0].large;
-            is_write = (bool)((buf2[0].write != 0)? true: false);
-            tid = buf2[0].tid;
-            curr_ts[0] = buf2[0].ts;
+            va = buf2[idx].va;
+            is_large = buf2[idx].large;
+            is_write = (bool)((buf2[idx].write != 0)? true: false);
+            tid = buf2[idx].tid;
+            curr_ts[idx] = buf2[idx].ts;
 
-            if(curr_ts[0] == last_ts[idx])
+	    std::cout << "Trace read: va = " << std::hex << va << std::dec << ", tid = " << tid << ", ts = " << buf2[idx].ts << std::endl;
+
+            if(curr_ts[idx] == last_ts[idx])
             {
                 //TODO: ymarathe:: thread id is the same as core id right now.
                 //Hyperthreading?
-                Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 last_ts[idx]++;
-                return req;
+                used_up[idx] = true;
+                return *req;
             }
-
-            else if(curr_ts[0] > last_ts[idx])
+            else if(curr_ts[idx] > last_ts[idx])
             {
-                Request req;
-                req.m_is_memory_acc = false;
+                Request *req = new Request();
+                req->m_is_memory_acc = false;
+		req->m_core_id = idx;
                 last_ts[idx]++;
-                return req;
+                return *req;
             }
         }
     }
     
-    return Request();
+    Request *req = new Request();
+    req->m_is_memory_acc = false;
+    return *req; 
 }

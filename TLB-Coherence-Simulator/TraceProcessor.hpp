@@ -70,7 +70,7 @@ public:
     
     int getNextEntry();
     
-    Request generateRequest();
+    Request& generateRequest();
     
 };
 
