@@ -23,13 +23,14 @@ private:
     class AddrMapKey {
     public:
         uint64_t m_addr;
+	uint64_t m_tid;
         bool m_is_large;
         
-        AddrMapKey(uint64_t addr, bool is_large) : m_addr(addr), m_is_large(is_large) {}
+        AddrMapKey(uint64_t addr, uint64_t tid, bool is_large) : m_addr(addr), m_tid(tid), m_is_large(is_large) {}
         
         friend std::ostream& operator << (std::ostream& out, AddrMapKey &a)
         {
-            out << "|" << a.m_addr << "|" << a.m_is_large << "|" << std::endl;
+            out << "|" << a.m_addr << "|" << a.m_tid << "|" << a.m_is_large << "|" << std::endl;
             return out;
         }
     };
@@ -40,6 +41,8 @@ private:
         {
             if(a.m_addr < b.m_addr)
                 return true;
+	    if(a.m_tid < b.m_tid)
+		return true; 
             if(a.m_is_large < b.m_is_large)
                 return true;
             
@@ -51,7 +54,6 @@ private:
     std::shared_ptr<CacheSys> m_tlb_hier;
     uint64_t m_l3_small_tlb_base = 0x0;
     uint64_t m_l3_small_tlb_size = 1024 * 1024;
-    uint64_t m_clk;
     
     //Stats
     uint64_t m_num_issued  = 0;
@@ -61,10 +63,11 @@ private:
     
     std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
     
-    std::deque<Request> traceVec;
+    std::deque<Request*> traceVec;
     
 public:
     std::shared_ptr<ROB> m_rob;
+    uint64_t m_clk;
     Core(std::shared_ptr<CacheSys> cache_hier, std::shared_ptr<CacheSys> tlb_hier, std::shared_ptr<ROB> rob, uint64_t l3_small_tlb_base = 0x0, uint64_t l3_small_tlb_size = 1024 * 1024) :
         m_cache_hier(cache_hier),
         m_tlb_hier(tlb_hier),
@@ -89,7 +92,7 @@ public:
     
     void tick();
 
-    void add_trace(Request& req);
+    void add_trace(Request *req);
 };
 
 #endif /* Core_hpp */

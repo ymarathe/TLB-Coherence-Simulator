@@ -15,7 +15,7 @@
 #include <memory>
 
 #define NUM_CORES 8
-#define NUM_INSTRUCTIONS 10
+#define NUM_INSTRUCTIONS 1000000 
 
 int main(int argc, char * argv[])
 {
@@ -36,7 +36,7 @@ int main(int argc, char * argv[])
     
     tp.verifyOpenTraceFiles();
     
-    std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(4, 8, 64, 25,  DATA_AND_TRANSLATION));
+    std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(8192, 16, 64, 25,  DATA_AND_TRANSLATION));
     
     bool ll_interface_complete = false;
     
@@ -63,8 +63,8 @@ int main(int argc, char * argv[])
     for(int i = 0; i < NUM_CORES; i++)
     {
         data_hier.push_back(std::make_shared<CacheSys>(CacheSys(false)));
-        l1_data_caches.push_back(std::make_shared<Cache>(Cache(1, 2, 64, 3, DATA_ONLY)));
-        l2_data_caches.push_back(std::make_shared<Cache>(Cache(2, 4, 64, 10, DATA_AND_TRANSLATION)));
+        l1_data_caches.push_back(std::make_shared<Cache>(Cache(64, 8, 64, 3, DATA_ONLY)));
+        l2_data_caches.push_back(std::make_shared<Cache>(Cache(1024, 4, 64, 10, DATA_AND_TRANSLATION)));
         
         data_hier[i]->add_cache_to_hier(l1_data_caches[i]);
         data_hier[i]->add_cache_to_hier(l2_data_caches[i]);
@@ -126,7 +126,21 @@ int main(int argc, char * argv[])
     }
     for(int i = 0; i < NUM_INSTRUCTIONS; i++)
     {
-        Request r = tp.generateRequest();
-        std::cout << std::hex << r << std::dec;
+        Request *r = tp.generateRequest();
+	cores[r->m_core_id]->add_trace(r);
     }
+
+    for(int j = 0; j < NUM_INSTRUCTIONS * 2; j++)
+    {
+	for(int i = 0; i < NUM_CORES; i++)
+	{
+	    cores[i]->tick();
+	}
+    } 
+
+    for(int i = 0; i < NUM_CORES;i++)
+    {
+	    cores[i]->m_rob->printContents();
+    }
+
 }

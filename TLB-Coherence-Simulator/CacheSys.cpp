@@ -7,6 +7,7 @@
 //
 
 #include "CacheSys.hpp"
+#include "Core.hpp"
 #include "Cache.hpp"
 
 void CacheSys::add_cache_to_hier(std::shared_ptr<Cache> cache)
@@ -92,15 +93,12 @@ void CacheSys::tick()
     
     assert(m_coh_act_list.empty());
     
-    //Then, tick
-    m_clk++;
-    
     //Retire elements from hit list
     for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_hit_list.begin();
         it != m_hit_list.end();
         )
     {
-        if(m_clk >= it->first)
+        if(m_core->m_clk >= it->first)
         {
             it->second->m_callback(it->second);
             it = m_hit_list.erase(it);
@@ -116,7 +114,7 @@ void CacheSys::tick()
         it != m_wait_list.end();
         )
     {
-        if(m_clk >= it->first)
+        if(m_core->m_clk >= it->first)
         {
             it->second->m_callback(it->second);
             it = m_wait_list.erase(it);

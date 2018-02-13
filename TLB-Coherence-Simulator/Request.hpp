@@ -81,6 +81,7 @@ public:
             return true;
         if(r1.m_type < r2.m_type)
             return true;
+	//TODO: ymarathe: remove this when tlb becomes thread aware
         if(r1.m_tid < r2.m_tid)
             return true;
         if(r1.m_is_large < r2.m_is_large)

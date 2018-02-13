@@ -59,7 +59,7 @@ public:
         m_num_waiting_instr = 0;
     }
     
-    bool issue(bool is_memory_access, Request &r, uint64_t clk);
+    bool issue(bool is_memory_access, Request *r, uint64_t clk);
     bool transfer_to_data_hier(Request &r);
     unsigned int retire(uint64_t clk);
     void mem_mark_done(Request &r);

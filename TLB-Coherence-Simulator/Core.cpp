@@ -53,7 +53,7 @@ bool Core::interfaceHier(bool ll_interface_complete)
     return ll_interface_complete;
 }
 
-uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
+uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large)
 {
     // Convert virtual address to a TLB lookup address.
     // Use the is_large attribute to go to either the small L3 TLB or the large L3 TLB.
@@ -79,18 +79,18 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large)
     
     if(va2L3TLBAddr.find(l3tlbaddr) != va2L3TLBAddr.end())
     {
-        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, is_large));
+        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
     }
     else
     {
         va2L3TLBAddr[l3tlbaddr] = {};
-        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, is_large));
+        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
     }
     
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
-std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb)
+std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t tid, bool is_large, bool is_higher_cache_small_tlb)
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
     bool propagate_access = true;
@@ -102,7 +102,7 @@ std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool 
         for(std::set<AddrMapKey>::iterator amk_iter = iter->second.begin(); amk_iter != iter->second.end();)
         {
             AddrMapKey val = *amk_iter;
-            if(is_large == val.m_is_large)
+            if(is_large == val.m_is_large && tid == val.m_tid)
             {
                 //propagate_to_small_tlb = 0, go with large
                 //propagate_to_small_tlb = 1, go with small
@@ -201,6 +201,7 @@ void Core::tick()
         
         if(can_issue)
         {
+	    std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
             if(data_req_status != REQUEST_RETRY)
             {
@@ -218,26 +219,26 @@ void Core::tick()
         }
        
     }
-    
+
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
     {
-        Request &req = traceVec.front();
-        kind act_req_kind = req.m_type;
+        Request *req = traceVec.front();
+        kind act_req_kind = req->m_type;
         
-        if(req.m_is_memory_acc)
+        if(req->m_is_memory_acc)
         {
-            req.update_request_type_from_core(TRANSLATION_READ);
-            RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(req);
-            req.update_request_type_from_core(act_req_kind);
+            req->update_request_type_from_core(TRANSLATION_READ);
+            RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(*req);
+            req->update_request_type_from_core(act_req_kind);
             if(tlb_req_status != REQUEST_RETRY)
             {
-                m_rob->issue(req.m_is_memory_acc, req, m_clk);
+                m_rob->issue(req->m_is_memory_acc, req, m_clk);
                 traceVec.pop_front();
             }
         }
         else
         {
-            m_rob->issue(req.m_is_memory_acc, req, m_clk);
+            m_rob->issue(req->m_is_memory_acc, req, m_clk);
             traceVec.pop_front();
         }
     }
@@ -253,7 +254,7 @@ void Core::set_core_id(unsigned int core_id)
     m_cache_hier->set_core_id(core_id);
 }
 
-void Core::add_trace(Request &req)
+void Core::add_trace(Request *req)
 {
     traceVec.push_back(req);
 }

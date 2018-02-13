@@ -42,8 +42,6 @@ public:
     //This is where coherence actions wait until they are served
     std::map<std::unique_ptr<Request>, CoherenceAction> m_coh_act_list;
     
-    uint64_t m_clk;
-    
     uint64_t m_memory_latency;
     uint64_t m_cache_to_cache_latency;
     
@@ -56,7 +54,7 @@ public:
     bool m_is_translation_hier;
     
     CacheSys(bool is_translation_hier, uint64_t memory_latency = 200, uint64_t cache_to_cache_latency = 50) :
-    m_is_translation_hier(is_translation_hier), m_clk(0), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency) { }
+    m_is_translation_hier(is_translation_hier), m_memory_latency(memory_latency), m_cache_to_cache_latency(cache_to_cache_latency) { }
     
     void add_cache_to_hier(std::shared_ptr<Cache> c);
     

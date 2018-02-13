@@ -13,6 +13,7 @@
 #include <iomanip>
 #include "utils.hpp"
 #include "Core.hpp"
+#include <climits>
 
 uint64_t Cache::get_line_offset(const uint64_t addr)
 {
@@ -193,7 +194,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         req.add_callback(m_callback);
         std::unique_ptr<Request> r = std::make_unique<Request>(req);
         
-        uint64_t deadline = m_cache_sys->m_clk + curr_latency;
+        uint64_t deadline = m_core->m_clk + curr_latency;
         
         //If element already exists in list, push deadline.
         while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
@@ -232,11 +233,12 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     CacheLine &line = set[insert_pos];
     
     auto mshr_iter = m_mshr_entries.find(req);
-    
+
     cur_addr = ((line.tag << m_num_line_offset_bits) << m_num_index_bits) | (index << m_num_line_offset_bits);
     
     //Blocking for L1 TLB access.
-    unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : 16;
+    //unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : (m_cache_level != 3) ? 16 : INT_MAX;
+    unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : INT_MAX;
     
     //Only if line is valid, we consider it to be an MSHR hit.
     if(mshr_iter != m_mshr_entries.end() && line.valid)
@@ -343,7 +345,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     {
         req.add_callback(m_callback);
         std::unique_ptr<Request> r = std::make_unique<Request>(req);
-        uint64_t deadline = m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency;
+        uint64_t deadline = m_core->m_clk + curr_latency + m_cache_sys->m_memory_latency;
         
         //If element already exists in the list, move deadline.
         while(m_cache_sys->m_wait_list.find(deadline) != m_cache_sys->m_wait_list.end())
@@ -425,7 +427,7 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 void Cache::release_lock(std::unique_ptr<Request>& r)
 {
     auto it = m_mshr_entries.find(*r);
-    
+
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
