@@ -127,15 +127,15 @@ int main(int argc, char * argv[])
     for(int i = 0; i < NUM_INSTRUCTIONS; i++)
     {
         Request *r = tp.generateRequest();
-	cores[r->m_core_id]->add_trace(r);
+        cores[r->m_core_id]->add_trace(r);
     }
 
     for(int j = 0; j < NUM_INSTRUCTIONS * 2; j++)
     {
-	for(int i = 0; i < NUM_CORES; i++)
-	{
-	    cores[i]->tick();
-	}
+        for(int i = 0; i < NUM_CORES; i++)
+        {
+            cores[i]->tick();
+        }
     } 
 
     for(int i = 0; i < NUM_CORES;i++)

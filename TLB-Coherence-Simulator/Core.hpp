@@ -41,8 +41,8 @@ private:
         {
             if(a.m_addr < b.m_addr)
                 return true;
-	    if(a.m_tid < b.m_tid)
-		return true; 
+            if(a.m_tid < b.m_tid)
+                return true; 
             if(a.m_is_large < b.m_is_large)
                 return true;
             

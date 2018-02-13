@@ -197,18 +197,18 @@ Request* TraceProcessor::generateRequest()
                 //TODO: ymarathe:: thread id is the same as core id right now.
                 //Hyperthreading?
                 //Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-		Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
+                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 last_ts[idx]++;
                 used_up[idx] = true;
-		return req;
+                return req;
             }
             else if(curr_ts[idx] > last_ts[idx])
             {
                 Request *req = new Request();
                 req->m_is_memory_acc = false;
-		req->m_core_id = idx;
+                req->m_core_id = idx;
                 last_ts[idx]++;
-		return req;
+                return req;
             }
         }
         else
@@ -228,15 +228,15 @@ Request* TraceProcessor::generateRequest()
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 last_ts[idx]++;
                 used_up[idx] = true;
-		return req;
+                return req;
             }
             else if(curr_ts[idx] > last_ts[idx])
             {
                 Request *req = new Request();
                 req->m_is_memory_acc = false;
-		req->m_core_id = idx;
+                req->m_core_id = idx;
                 last_ts[idx]++;
-		return req;
+                return req;
             }
         }
     }
@@ -247,6 +247,7 @@ Request* TraceProcessor::generateRequest()
 	    std::cout << "last_ts[" << i << "] = " << last_ts[i] << std::endl; 
     }
     exit(0);
+    
     Request *req = new Request();
     req->m_is_memory_acc = false;
     return req; 
