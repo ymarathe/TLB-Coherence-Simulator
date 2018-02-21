@@ -177,7 +177,7 @@ void Core::tick()
     
     m_num_retired += m_rob->retire(m_clk);
     
-    for(std::multimap<Request, bool>::iterator it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end();)
+    for(auto it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end();)
     {
         Request req = it->first;
         bool can_issue = it->second;
@@ -201,10 +201,11 @@ void Core::tick()
         
         if(can_issue)
         {
-	    std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+
             if(data_req_status != REQUEST_RETRY)
             {
+	    	std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
                 it = m_rob->is_request_ready.erase(it);
                 break;
             }
@@ -257,4 +258,9 @@ void Core::set_core_id(unsigned int core_id)
 void Core::add_trace(Request *req)
 {
     traceVec.push_back(req);
+}
+
+bool Core::is_done()
+{
+	return (traceVec.empty() && (m_clk > 0) && (m_rob->is_empty())); 
 }

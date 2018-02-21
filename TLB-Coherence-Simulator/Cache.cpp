@@ -192,7 +192,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         }
         
         req.add_callback(m_callback);
-        std::unique_ptr<Request> r = std::make_unique<Request>(req);
+        std::shared_ptr<Request> r = std::make_shared<Request>(req);
         
         uint64_t deadline = m_core->m_clk + curr_latency;
         
@@ -202,7 +202,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             deadline++;
         }
     
-        m_cache_sys->m_hit_list.insert(std::make_pair(deadline, std::move(r)));
+        m_cache_sys->m_hit_list.insert(std::make_pair(deadline, r));
 
         //Coherence handling
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
@@ -317,6 +317,9 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
         MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
         m_mshr_entries.insert(std::make_pair(req, mshr_entry));
+	auto it = m_mshr_entries.find(req);
+	//Ensure insertion in the MSHR
+	assert(it != m_mshr_entries.end());
     }
     else
     {
@@ -344,7 +347,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             (m_cache_sys->is_last_level(m_cache_level) && is_translation && (m_cache_sys->get_is_translation_hier())))
     {
         req.add_callback(m_callback);
-        std::unique_ptr<Request> r = std::make_unique<Request>(req);
+        std::shared_ptr<Request> r = std::make_shared<Request>(req);
         uint64_t deadline = m_core->m_clk + curr_latency + m_cache_sys->m_memory_latency;
         
         //If element already exists in the list, move deadline.
@@ -352,7 +355,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         {
             deadline++;
         }
-        m_cache_sys->m_wait_list.insert(std::make_pair(deadline, std::move(r)));
+        m_cache_sys->m_wait_list.insert(std::make_pair(deadline, r));
     }
     //We are in last level of cache hier and translation entry and not doing writeback.
     //Go to L3 TLB.
@@ -424,15 +427,15 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
     m_cache_sys = cache_sys;
 }
 
-void Cache::release_lock(std::unique_ptr<Request>& r)
+void Cache::release_lock(std::shared_ptr<Request> r)
 {
     auto it = m_mshr_entries.find(*r);
-
+    
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
         //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
-        
+	//
         if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
             it->second->m_line->lock = false;
@@ -500,9 +503,9 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
         {
             for(int i = 0; i < m_cache_sys->m_other_cache_sys.size(); i++)
             {
-                std::unique_ptr<Request> req = std::make_unique<Request>(r);
+                std::shared_ptr<Request> req = std::make_shared<Request>(r);
                 req->m_core_id = m_core_id;
-                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(std::move(req), coh_action));
+                m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(req, coh_action));
             }
         }
         else if(!same_cache_sys)
@@ -536,7 +539,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             unsigned int originating_core = r.m_core_id;
             assert(originating_core != m_core_id);
             unsigned int index = (originating_core < m_core_id) ? originating_core : (originating_core - m_core_id - 1);
-            m_cache_sys->m_other_cache_sys[index]->m_coh_act_list.insert(std::make_pair(std::make_unique<Request>(r), coh_action));
+            m_cache_sys->m_other_cache_sys[index]->m_coh_act_list.insert(std::make_pair(std::make_shared<Request>(r), coh_action));
         }
         else
         {
@@ -594,11 +597,11 @@ std::shared_ptr<Cache> Cache::find_lower_cache_in_core(uint64_t addr, bool is_tr
     return lower_cache;
 }
 
-void Cache::propagate_release_lock(std::unique_ptr<Request> &r)
+void Cache::propagate_release_lock(std::shared_ptr<Request> r)
 {
     uint64_t addr_memory = 0;
     bool addr_memory_init = false;
-    
+
     try
     {
         for(int i = 0; i < m_higher_caches.size(); i++)

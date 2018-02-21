@@ -34,13 +34,13 @@ public:
     std::vector<std::shared_ptr<Cache>> m_caches;
     
     //This is where requests wait until they are served a memory access
-    std::map<uint64_t, std::unique_ptr<Request>> m_wait_list;
+    std::map<uint64_t, std::shared_ptr<Request>> m_wait_list;
     
     //This is where requests wait until they are served by a hit
-    std::map<uint64_t, std::unique_ptr<Request>> m_hit_list;
+    std::map<uint64_t, std::shared_ptr<Request>> m_hit_list;
     
     //This is where coherence actions wait until they are served
-    std::map<std::unique_ptr<Request>, CoherenceAction> m_coh_act_list;
+    std::map<std::shared_ptr<Request>, CoherenceAction> m_coh_act_list;
     
     uint64_t m_memory_latency;
     uint64_t m_cache_to_cache_latency;

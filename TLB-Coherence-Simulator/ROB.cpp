@@ -96,3 +96,13 @@ void ROB::mem_mark_translation_done(Request &r)
         it->second = true;
     }
 }
+
+bool ROB::is_empty()
+{
+	return (m_num_waiting_instr == 0);
+}
+
+void ROB::peek_commit_ptr()
+{
+	std::cout << "[" << m_window[m_commit_ptr].req << "] Request at commit ptr = " << std::hex << *(m_window[m_commit_ptr].req) << std::dec;
+}

@@ -12,6 +12,7 @@
 #include <iostream>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <memory>
 #include "utils.hpp"
 #include "ReplPolicy.hpp"
@@ -34,7 +35,7 @@ private:
         
         MSHREntry(kind txn_kind, CacheLine *line) : m_txn_kind(txn_kind), m_line(line), m_is_core_agnostic(false) {}
     };
-    
+
     unsigned int m_num_sets;
     unsigned int m_associativity;
     unsigned int m_line_size;
@@ -52,12 +53,12 @@ private:
     
     std::shared_ptr<Core> m_core;
     
-    std::map<Request, MSHREntry*, RequestComparator> m_mshr_entries;
+    std::unordered_map<Request, MSHREntry*, RequestHasher> m_mshr_entries;
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;
     
-    std::function<void(std::unique_ptr<Request>&)> m_callback;
+    std::function<void(std::shared_ptr<Request>)> m_callback;
     
     bool m_is_coherence_enabled;
     
@@ -127,7 +128,7 @@ public:
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);
     unsigned int get_level();
-    void release_lock(std::unique_ptr<Request> &r);
+    void release_lock(std::shared_ptr<Request> r);
     void printContents();
     void set_cache_sys(CacheSys *cache_sys);
     unsigned int get_latency_cycles();
@@ -136,7 +137,7 @@ public:
     CacheType get_cache_type();
     void set_core(std::shared_ptr<Core>& coreptr);
     std::shared_ptr<Cache> find_lower_cache_in_core(uint64_t addr, bool is_translation, bool is_large = false);
-    void propagate_release_lock(std::unique_ptr<Request> &r);
+    void propagate_release_lock(std::shared_ptr<Request> r);
     bool get_is_large_page_tlb();
     void set_core_id(unsigned int core_id);
     unsigned int get_core_id();

@@ -198,7 +198,7 @@ Request* TraceProcessor::generateRequest()
                 //Hyperthreading?
                 //Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-                last_ts[idx]++;
+                //last_ts[idx]++;
                 used_up[idx] = true;
                 return req;
             }
@@ -226,7 +226,7 @@ Request* TraceProcessor::generateRequest()
                 //TODO: ymarathe:: thread id is the same as core id right now.
                 //Hyperthreading?
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-                last_ts[idx]++;
+                //last_ts[idx]++;
                 used_up[idx] = true;
                 return req;
             }

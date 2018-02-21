@@ -14,15 +14,15 @@
 #include "TraceProcessor.hpp"
 #include <memory>
 
-#define NUM_CORES 8
-#define NUM_INSTRUCTIONS 1000000 
+#define NUM_CORES 1 
+#define NUM_INSTRUCTIONS 80000000 
 
 int main(int argc, char * argv[])
 {
     int num_args = 1;
     int num_real_args = num_args + 1;
     
-    TraceProcessor tp(NUM_CORES);
+    TraceProcessor tp(8);
     if (argc < num_real_args)
     {
         std::cout << "Program takes " << num_args << " arguments" << std::endl;
@@ -127,20 +127,38 @@ int main(int argc, char * argv[])
     for(int i = 0; i < NUM_INSTRUCTIONS; i++)
     {
         Request *r = tp.generateRequest();
-        cores[r->m_core_id]->add_trace(r);
+        if(r->m_core_id >=0 && r->m_core_id < NUM_CORES)
+        {
+                cores[r->m_core_id]->add_trace(r);
+        } 
     }
 
-    for(int j = 0; j < NUM_INSTRUCTIONS * 2; j++)
-    {
-        for(int i = 0; i < NUM_CORES; i++)
-        {
-            cores[i]->tick();
-        }
-    } 
+   bool done = false;
+   bool timeout = false;
+   while(!done && !timeout)
+   {
+	done = true;
+   	for(int i = 0; i < NUM_CORES; i++)
+   	{
+	   cores[i]->tick();
+	   done = done & cores[i]->is_done(); 
+	   if(cores[i]->is_done())
+	   {
+		   std::cout << "Core " << i << " done in " << cores[i]->m_clk << " cycles" << std::endl;
+	   }
+	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
+	   {
+		   std::cout << "Core " << i << " timed out " << std::endl;
+		   std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
+		   timeout = true;
+	   }
+ 	}
+   }
+
 
     for(int i = 0; i < NUM_CORES;i++)
     {
-	    cores[i]->m_rob->printContents();
+        cores[i]->m_rob->printContents();
     }
 
 }

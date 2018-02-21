@@ -93,6 +93,8 @@ public:
     void tick();
 
     void add_trace(Request *req);
+
+    bool is_done();
 };
 
 #endif /* Core_hpp */

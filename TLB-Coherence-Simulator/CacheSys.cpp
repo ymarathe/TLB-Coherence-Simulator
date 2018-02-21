@@ -73,7 +73,7 @@ void CacheSys::tick()
     //First, handle coherence actions in the current clock cycle
     bool needs_state_correction = false;
     bool state_corrected = false;
-    for(std::map<std::unique_ptr<Request>, CoherenceAction>::iterator it = m_coh_act_list.begin();
+    for(std::map<std::shared_ptr<Request>, CoherenceAction>::iterator it = m_coh_act_list.begin();
         it != m_coh_act_list.end(); )
     {
         int limit = (int) (m_is_translation_hier ? m_caches.size() - 2 : m_caches.size() - 1);
@@ -94,7 +94,7 @@ void CacheSys::tick()
     assert(m_coh_act_list.empty());
     
     //Retire elements from hit list
-    for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_hit_list.begin();
+    for(std::map<uint64_t, std::shared_ptr<Request>>::iterator it = m_hit_list.begin();
         it != m_hit_list.end();
         )
     {
@@ -110,7 +110,7 @@ void CacheSys::tick()
     }
     
     //Then retire elements from wait list
-    for(std::map<uint64_t, std::unique_ptr<Request>>::iterator it = m_wait_list.begin();
+    for(std::map<uint64_t, std::shared_ptr<Request>>::iterator it = m_wait_list.begin();
         it != m_wait_list.end();
         )
     {
