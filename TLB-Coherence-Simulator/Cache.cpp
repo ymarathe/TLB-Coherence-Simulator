@@ -171,9 +171,12 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     uint64_t coh_tid;
     bool coh_is_large;
     uint64_t cur_addr;
-    
+
     bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
-    
+
+    num_tr_accesses  += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+    num_data_accesses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+
     if(is_hit(set, tag, is_translation, tid, hit_pos))
     {
         CacheLine &line = set[hit_pos];
@@ -219,6 +222,9 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         
         handle_coherence_action(coh_action, req, curr_latency, true);
         
+	num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+	num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+
         return REQUEST_HIT;
     }
     
@@ -283,10 +289,19 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         {
             mshr_iter->second->m_is_core_agnostic = true;
         }
+
+	num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+	num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+
+    	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+   	num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
         {
-            assert(mshr_iter->second->m_line->lock);
+       	    if(get_tag(req.m_addr) == mshr_iter->second->m_line->tag)
+	    {
+            	assert(mshr_iter->second->m_line->lock);
+	    }
             return MSHR_HIT_AND_LOCKED;
         }
         else
@@ -320,6 +335,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
 	auto it = m_mshr_entries.find(req);
 	//Ensure insertion in the MSHR
 	assert(it != m_mshr_entries.end());
+    	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+   	num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
     }
     else
     {
