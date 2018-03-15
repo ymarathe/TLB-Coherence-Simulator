@@ -15,7 +15,7 @@
 #include <memory>
 
 #define NUM_CORES 8 
-#define NUM_INSTRUCTIONS 20000000000 
+#define NUM_INSTRUCTIONS 10000000 
 #define NUM_INITIAL_FILL 100000
 
 int main(int argc, char * argv[])
@@ -110,12 +110,13 @@ int main(int argc, char * argv[])
             if(i != j)
             {
                 data_hier[i]->add_cachesys(data_hier[j]);
+                data_hier[i]->add_cachesys(tlb_hier[j]);
             }
         }
     }
     
     //Make TLB hierarchies aware of each other
-    for(int i = 0; i < NUM_CORES; i++)
+    /*for(int i = 0; i < NUM_CORES; i++)
     {
         for(int j = 0; j < NUM_CORES; j++)
         {
@@ -124,7 +125,7 @@ int main(int argc, char * argv[])
                 tlb_hier[i]->add_cachesys(tlb_hier[j]);
             }
         }
-    }
+    }*/
     
     std::cout << "Initial fill\n";
     for(int i = 0; i < NUM_INITIAL_FILL; i++)
@@ -186,25 +187,96 @@ int main(int argc, char * argv[])
         std::cout << "Cycles = " << cores[i]->m_clk << "\n";
         std::cout << "Instructions = " << (tp.last_ts[i] - tp.warmup_period) << "\n"; 
         std::cout << "IPC = " << (double) (tp.last_ts[i] - tp.warmup_period)/(cores[i]->m_clk) << "\n";
+
         std::cout << "--------Core " << i << " -------------" << std::endl; 
-        std::cout << "[L1] Number of data hits = " << l1_data_caches[i]->num_data_hits << std::endl;
-        std::cout << "[L1] Number of translation hits = " << l1_data_caches[i]->num_tr_hits << std::endl;
-        std::cout << "[L1] Number of data misses = " << l1_data_caches[i]->num_data_misses << std::endl;
-        std::cout << "[L1] Number of translation misses = " << l1_data_caches[i]->num_tr_misses << std::endl;
-        std::cout << "[L1] Number of MSHR data hits = " << l1_data_caches[i]->num_mshr_data_hits << std::endl;
-        std::cout << "[L1] Number of MSHR translation hits = " << l1_data_caches[i]->num_mshr_tr_hits << std::endl;
-        std::cout << "[L1] Number of data accesses = " << l1_data_caches[i]->num_data_accesses << std::endl;
-        std::cout << "[L1] Number of translation accesses = " << l1_data_caches[i]->num_tr_accesses << std::endl;
-        std::cout << "[L1] MPKI = " << (double) (l1_data_caches[i]->num_data_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+        std::cout << "[L1 D$] Number of data hits = " << l1_data_caches[i]->num_data_hits << std::endl;
+        std::cout << "[L1 D$] Number of translation hits = " << l1_data_caches[i]->num_tr_hits << std::endl;
+        std::cout << "[L1 D$] Number of data misses = " << l1_data_caches[i]->num_data_misses << std::endl;
+        std::cout << "[L1 D$] Number of translation misses = " << l1_data_caches[i]->num_tr_misses << std::endl;
+        std::cout << "[L1 D$] Number of MSHR data hits = " << l1_data_caches[i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L1 D$] Number of MSHR translation hits = " << l1_data_caches[i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L1 D$] Number of data accesses = " << l1_data_caches[i]->num_data_accesses << std::endl;
+        std::cout << "[L1 D$] Number of translation accesses = " << l1_data_caches[i]->num_tr_accesses << std::endl;
+        std::cout << "[L1 D$] MPKI = " << (double) (l1_data_caches[i]->num_data_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
         
-        std::cout << "[L2] Number of data hits = " << l2_data_caches[i]->num_data_hits << std::endl;
-        std::cout << "[L2] Number of translation hits = " << l2_data_caches[i]->num_tr_hits << std::endl;
-        std::cout << "[L2] Number of data misses = " << l2_data_caches[i]->num_data_misses << std::endl;
-        std::cout << "[L2] Number of translation misses = " << l2_data_caches[i]->num_tr_misses << std::endl;
-        std::cout << "[L2] Number of MSHR data hits = " << l2_data_caches[i]->num_mshr_data_hits << std::endl;
-        std::cout << "[L2] Number of MSHR translation hits = " << l2_data_caches[i]->num_mshr_tr_hits << std::endl;
-        std::cout << "[L2] Number of data accesses = " << l2_data_caches[i]->num_data_accesses << std::endl;
-        std::cout << "[L2] Number of translation accesses = " << l2_data_caches[i]->num_tr_accesses << std::endl;
-        std::cout << "[L1] MPKI = " << (double) ((l2_data_caches[i]->num_data_misses  + l2_data_caches[i]->num_tr_misses)* 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+        std::cout << "[L2 D$] Number of data hits = " << l2_data_caches[i]->num_data_hits << std::endl;
+        std::cout << "[L2 D$] Number of translation hits = " << l2_data_caches[i]->num_tr_hits << std::endl;
+        std::cout << "[L2 D$] Number of data misses = " << l2_data_caches[i]->num_data_misses << std::endl;
+        std::cout << "[L2 D$] Number of translation misses = " << l2_data_caches[i]->num_tr_misses << std::endl;
+        std::cout << "[L2 D$] Number of MSHR data hits = " << l2_data_caches[i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L2 D$] Number of MSHR translation hits = " << l2_data_caches[i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L2 D$] Number of data accesses = " << l2_data_caches[i]->num_data_accesses << std::endl;
+        std::cout << "[L2 D$] Number of translation accesses = " << l2_data_caches[i]->num_tr_accesses << std::endl;
+        std::cout << "[L2 D$] MPKI = " << (double) ((l2_data_caches[i]->num_data_misses  + l2_data_caches[i]->num_tr_misses)* 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+
+        std::cout << "[L1 SMALL TLB] Number of data hits = " << l1_tlb[2 * i]->num_data_hits << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of translation hits = " << l1_tlb[2 * i]->num_tr_hits << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of data misses = " << l1_tlb[2 * i]->num_data_misses << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of translation misses = " << l1_tlb[2 * i]->num_tr_misses << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of MSHR data hits = " << l1_tlb[2 * i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of MSHR translation hits = " << l1_tlb[2 * i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of data accesses = " << l1_tlb[2 * i]->num_data_accesses << std::endl;
+        std::cout << "[L1 SMALL TLB] Number of translation accesses = " << l1_tlb[2 * i]->num_tr_accesses << std::endl;
+        std::cout << "[L1 SMALL TLB] MPKI = " << (double) (l1_tlb[2 * i]->num_tr_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+
+        std::cout << "[L1 LARGE TLB] Number of data hits = " << l1_tlb[2 * i + 1]->num_data_hits << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of translation hits = " << l1_tlb[2 * i + 1]->num_tr_hits << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of data misses = " << l1_tlb[2 * i + 1]->num_data_misses << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of translation misses = " << l1_tlb[2 * i + 1]->num_tr_misses << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of MSHR data hits = " << l1_tlb[2 * i + 1]->num_mshr_data_hits << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of MSHR translation hits = " << l1_tlb[2 * i + 1]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of data accesses = " << l1_tlb[2 * i + 1]->num_data_accesses << std::endl;
+        std::cout << "[L1 LARGE TLB] Number of translation accesses = " << l1_tlb[2 * i + 1]->num_tr_accesses << std::endl;
+        std::cout << "[L1 LARGE TLB] MPKI = " << (double) (l1_tlb[2 * i + 1]->num_tr_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+
+        std::cout << "[L2 SMALL TLB] Number of data hits = " << l2_tlb[2 * i]->num_data_hits << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of translation hits = " << l2_tlb[2 * i]->num_tr_hits << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of data misses = " << l2_tlb[2 * i]->num_data_misses << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of translation misses = " << l2_tlb[2 * i]->num_tr_misses << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of MSHR data hits = " << l2_tlb[2 * i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of MSHR translation hits = " << l2_tlb[2 * i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of data accesses = " << l2_tlb[2 * i]->num_data_accesses << std::endl;
+        std::cout << "[L2 SMALL TLB] Number of translation accesses = " << l2_tlb[2 * i]->num_tr_accesses << std::endl;
+        std::cout << "[L2 SMALL TLB] MPKI = " << (double) (l2_tlb[2 * i]->num_tr_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+
+        std::cout << "[L2 LARGE TLB] Number of data hits = " << l2_tlb[2 * i + 1]->num_data_hits << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of translation hits = " << l2_tlb[2 * i + 1]->num_tr_hits << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of data misses = " << l2_tlb[2 * i + 1]->num_data_misses << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of translation misses = " << l2_tlb[2 * i + 1]->num_tr_misses << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of MSHR data hits = " << l2_tlb[2 * i + 1]->num_mshr_data_hits << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of MSHR translation hits = " << l2_tlb[2 * i + 1]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of data accesses = " << l2_tlb[2 * i + 1]->num_data_accesses << std::endl;
+        std::cout << "[L2 LARGE TLB] Number of translation accesses = " << l2_tlb[2 * i + 1]->num_tr_accesses << std::endl;
+        std::cout << "[L2 LARGE TLB] MPKI = " << (double) (l2_tlb[2 * i + 1]->num_tr_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
     }
+    
+    std::cout << "[L3] Number of data hits = " << llc->num_data_hits << std::endl;
+    std::cout << "[L3] Number of translation hits = " << llc->num_tr_hits << std::endl;
+    std::cout << "[L3] Number of data misses = " << llc->num_data_misses << std::endl;
+    std::cout << "[L3] Number of translation misses = " << llc->num_tr_misses << std::endl;
+    std::cout << "[L3] Number of MSHR data hits = " << llc->num_mshr_data_hits << std::endl;
+    std::cout << "[L3] Number of MSHR translation hits = " << llc->num_mshr_tr_hits << std::endl;
+    std::cout << "[L3] Number of data accesses = " << llc->num_data_accesses << std::endl;
+    std::cout << "[L3] Number of translation accesses = " << llc->num_tr_accesses << std::endl;
+    std::cout << "[L3] MPKI = " << (double) ((llc->num_data_misses  + llc->num_tr_misses)* 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
+
+    std::cout << "[L3 SMALL TLB] Number of data hits = " << l3_tlb_small->num_data_hits << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of translation hits = " << l3_tlb_small->num_tr_hits << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of data misses = " << l3_tlb_small->num_data_misses << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of translation misses = " << l3_tlb_small->num_tr_misses << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of MSHR data hits = " << l3_tlb_small->num_mshr_data_hits << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of MSHR translation hits = " << l3_tlb_small->num_mshr_tr_hits << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of data accesses = " << l3_tlb_small->num_data_accesses << std::endl;
+    std::cout << "[L3 SMALL TLB] Number of translation accesses = " << l3_tlb_small->num_tr_accesses << std::endl;
+    std::cout << "[L3 SMALL TLB] MPKI = " << (double) (l3_tlb_small->num_tr_misses * 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
+    
+    std::cout << "[L3 LARGE TLB] Number of data hits = " << l3_tlb_large->num_data_hits << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of translation hits = " << l3_tlb_large->num_tr_hits << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of data misses = " << l3_tlb_large->num_data_misses << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of translation misses = " << l3_tlb_large->num_tr_misses << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of MSHR data hits = " << l3_tlb_large->num_mshr_data_hits << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of MSHR translation hits = " << l3_tlb_large->num_mshr_tr_hits << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of data accesses = " << l3_tlb_large->num_data_accesses << std::endl;
+    std::cout << "[L3 LARGE TLB] Number of translation accesses = " << l3_tlb_large->num_tr_accesses << std::endl;
+    std::cout << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
 }

@@ -222,8 +222,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         
         handle_coherence_action(coh_action, req, curr_latency, true);
         
-	num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-	num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+	    num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+	    num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
 
         return REQUEST_HIT;
     }
@@ -290,11 +290,11 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             mshr_iter->second->m_is_core_agnostic = true;
         }
 
-	num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-	num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+	    num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+	    num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
 
     	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-   	num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+   	    num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
         {
@@ -330,6 +330,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         line.is_large = is_large;
         line.tid = tid;
         line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
+        //If cache type is TRANSLATION_ONLY, include co-tag
+        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : -1;
         MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
         m_mshr_entries.insert(std::make_pair(req, mshr_entry));
 	    auto it = m_mshr_entries.find(req);
@@ -525,7 +527,8 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(req, coh_action));
             }
         }
-        else if(!same_cache_sys)
+        //Coherence in data caches is enforced by address
+        else if(!same_cache_sys && (m_cache_type != TRANSLATION_ONLY))
         {
             //If call came from different cache hierarchy, handle it!
             //Invalidate if we see BROADCAST_*_WRITE
@@ -533,6 +536,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             uint64_t tag = get_tag(addr);
             uint64_t index = get_index(addr);
             std::vector<CacheLine>& set = m_tagStore[index];
+            //We might still be looking at a TRANSLATION_ENTRY because L2 and L3 are DATA_AND_TRANSLATION
             bool is_translation = (coh_action == BROADCAST_TRANSLATION_WRITE) || (coh_action == BROADCAST_TRANSLATION_READ);
             
             if(is_found(set, tag, is_translation, tid, hit_pos))
@@ -546,6 +550,24 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
                 needs_state_correction = (coh_action == BROADCAST_DATA_READ) || (coh_action == BROADCAST_TRANSLATION_READ);
+            }
+        }
+        //Translation coherence is enforced by co-tags
+        else if(!same_cache_sys && (m_cache_type == TRANSLATION_ONLY))
+        {
+            assert(m_cache_sys->get_is_translation_hier());
+            unsigned int index, hit_pos;
+            if(is_found_by_cotag(addr, index, hit_pos))
+            {
+                std::cout << "In level = " << m_cache_level << ", in hier = " << m_cache_sys->get_is_translation_hier() << ", found co-tag = " << std::hex << "0x" << addr << std::dec << std::endl; 
+                CacheLine &line = m_tagStore[index][hit_pos];
+                kind coh_txn_kind = txnKindForCohAction(coh_action);
+                line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
+                if(coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
+                {
+                    line.valid = false;
+                    assert(line.m_coherence_prot->getCoherenceState() == INVALID);
+                }
             }
         }
     }
@@ -714,4 +736,22 @@ unsigned int Cache::get_core_id()
 void Cache::initialize_callback()
 {
      m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
+}
+
+bool Cache::is_found_by_cotag(uint64_t pom_tlb_addr, unsigned int &index, unsigned int &hit_pos)
+{
+    for(int i = 0; i < m_num_sets; i++)
+    {
+        for(int j = 0; j < m_associativity; j++)
+        {
+            CacheLine &line = m_tagStore[i][j];
+            if(line.cotag == pom_tlb_addr)
+            {
+                index = i;
+                hit_pos = j;
+                return true; 
+            }
+        }
+    }
+    return false;
 }
