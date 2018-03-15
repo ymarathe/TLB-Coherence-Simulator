@@ -84,7 +84,7 @@ public:
     
     void set_core_id(unsigned int core_id);
     
-    uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large);
+    uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large, bool insert = true);
     
     std::vector<uint64_t> retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb);
     
@@ -95,6 +95,8 @@ public:
     void add_trace(Request *req);
 
     bool is_done();
+
+    bool must_add_trace();
 };
 
 #endif /* Core_hpp */

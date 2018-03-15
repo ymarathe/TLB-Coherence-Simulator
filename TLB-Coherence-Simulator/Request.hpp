@@ -49,7 +49,7 @@ public:
     {
         update_request_type(m_type);
     }
-    
+
     Request() : Request(0, INVALID_TXN_KIND, 0, 0, 0) {}
     
     bool is_translation_request();

@@ -22,6 +22,7 @@ public:
     bool is_large;
     uint64_t tag;
     uint64_t tid;
+    uint64_t cotag;
     CoherenceProtocol *m_coherence_prot;
     
     CacheLine() : valid(false),
@@ -30,8 +31,14 @@ public:
                   is_translation(false),
                   is_large(false),
                   tid(0),
+                  cotag(0),
                   tag(0) { }
     
+    CoherenceProtocol* get_coherence_prot()
+    {
+        return m_coherence_prot;
+    }
+
     void set_coherence_prot(CoherenceProtocol *coherence_prot)
     {
         m_coherence_prot = coherence_prot;

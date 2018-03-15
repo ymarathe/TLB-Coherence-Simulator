@@ -48,8 +48,8 @@ unsigned int ROB::retire(uint64_t clk)
     {
         //Advance commit ptr
         m_window[m_commit_ptr].valid = false;
+	    delete m_window[m_commit_ptr].req;
         m_window[m_commit_ptr].req = nullptr;
-	delete m_window[m_commit_ptr].req;
         m_commit_ptr = (m_commit_ptr + 1) % m_window_size;
         m_num_waiting_instr--;
         num_retired++;

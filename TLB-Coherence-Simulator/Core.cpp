@@ -53,7 +53,7 @@ bool Core::interfaceHier(bool ll_interface_complete)
     return ll_interface_complete;
 }
 
-uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large)
+uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large, bool insert)
 {
     // Convert virtual address to a TLB lookup address.
     // Use the is_large attribute to go to either the small L3 TLB or the large L3 TLB.
@@ -77,14 +77,17 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large)
     
     uint64_t l3tlbaddr = l3_tlb_base_address + (set_index * 16 * 4);
     
-    if(va2L3TLBAddr.find(l3tlbaddr) != va2L3TLBAddr.end())
+    if(insert)
     {
-        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
-    }
-    else
-    {
-        va2L3TLBAddr[l3tlbaddr] = {};
-        va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
+        if(va2L3TLBAddr.find(l3tlbaddr) != va2L3TLBAddr.end())
+        {
+            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
+        }
+        else
+        {
+            va2L3TLBAddr[l3tlbaddr] = {};
+            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
+        }
     }
     
     return l3tlbaddr; // each set holds 4 entries of 16B each.
@@ -205,7 +208,7 @@ void Core::tick()
 
             if(data_req_status != REQUEST_RETRY)
             {
-	    	std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
+	    	//std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
                 it = m_rob->is_request_ready.erase(it);
                 break;
             }
@@ -263,4 +266,9 @@ void Core::add_trace(Request *req)
 bool Core::is_done()
 {
 	return (traceVec.empty() && (m_clk > 0) && (m_rob->is_empty())); 
+}
+
+bool Core::must_add_trace()
+{
+    return (traceVec.size() < 1000000);
 }

@@ -27,13 +27,12 @@ private:
     uint64_t *entry_count;
     unsigned int num_cores;
     int global_index;
-    uint64_t *last_ts;
     uint64_t *curr_ts;
-    uint64_t warmup_period = 10000000000;
     
 public:
-    
     //Variables
+    uint64_t *last_ts;
+    uint64_t warmup_period = 10000000000;
     uint64_t total_instructions_in_real_run[32];
     uint64_t ideal_cycles_in_real_run[32];
     uint64_t num_tlb_misses_in_real_run[32];
@@ -55,10 +54,24 @@ public:
         last_ts = new uint64_t [num_cores];
         curr_ts = new uint64_t [num_cores];
 
-	for(int i = 0; i < num_cores; i++)
-	{
-		last_ts[i] = warmup_period;
-	}
+        for(int i = 0; i < num_cores; i++)
+        {
+        	last_ts[i] = warmup_period;
+        }
+    }
+
+    ~TraceProcessor()
+    {
+        delete [] buf1;
+        delete [] buf2;
+
+        delete [] used_up;
+        delete [] empty_file;
+
+        delete [] entry_count;
+        
+        delete [] last_ts;
+        delete [] curr_ts;
     }
     
     //Methods

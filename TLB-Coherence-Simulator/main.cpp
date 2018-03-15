@@ -14,8 +14,9 @@
 #include "TraceProcessor.hpp"
 #include <memory>
 
-#define NUM_CORES 1 
-#define NUM_INSTRUCTIONS 80000000 
+#define NUM_CORES 8 
+#define NUM_INSTRUCTIONS 20000000000 
+#define NUM_INITIAL_FILL 100000
 
 int main(int argc, char * argv[])
 {
@@ -36,12 +37,12 @@ int main(int argc, char * argv[])
     
     tp.verifyOpenTraceFiles();
     
-    std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(8192, 16, 64, 25,  DATA_AND_TRANSLATION));
+    std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(8192, 16, 64, 38,  DATA_AND_TRANSLATION));
     
     bool ll_interface_complete = false;
     
-    std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(16384, 4, 4096, 1, TRANSLATION_ONLY));
-    std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(4096, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true));
+    std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(16384, 4, 4096, 75, TRANSLATION_ONLY));
+    std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(4096, 4, 2 * 1024 * 1024, 75, TRANSLATION_ONLY, true));
     
     /*
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(8, 8, 4096, 1, TRANSLATION_ONLY));
@@ -63,8 +64,8 @@ int main(int argc, char * argv[])
     for(int i = 0; i < NUM_CORES; i++)
     {
         data_hier.push_back(std::make_shared<CacheSys>(CacheSys(false)));
-        l1_data_caches.push_back(std::make_shared<Cache>(Cache(64, 8, 64, 3, DATA_ONLY)));
-        l2_data_caches.push_back(std::make_shared<Cache>(Cache(1024, 4, 64, 10, DATA_AND_TRANSLATION)));
+        l1_data_caches.push_back(std::make_shared<Cache>(Cache(64, 8, 64, 4, DATA_ONLY)));
+        l2_data_caches.push_back(std::make_shared<Cache>(Cache(1024, 4, 64, 12, DATA_AND_TRANSLATION)));
         
         data_hier[i]->add_cache_to_hier(l1_data_caches[i]);
         data_hier[i]->add_cache_to_hier(l2_data_caches[i]);
@@ -79,8 +80,8 @@ int main(int argc, char * argv[])
         
         l1_tlb.push_back(std::make_shared<Cache>(Cache(16, 4, 4096, 1, TRANSLATION_ONLY)));
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
-        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 1, TRANSLATION_ONLY)));
-        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 14, TRANSLATION_ONLY)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 14, TRANSLATION_ONLY, true)));
         
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i]);
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i + 1]);
@@ -124,7 +125,9 @@ int main(int argc, char * argv[])
             }
         }
     }
-    for(int i = 0; i < NUM_INSTRUCTIONS; i++)
+    
+    std::cout << "Initial fill\n";
+    for(int i = 0; i < NUM_INITIAL_FILL; i++)
     {
         Request *r = tp.generateRequest();
         if(r->m_core_id >=0 && r->m_core_id < NUM_CORES)
@@ -132,20 +135,40 @@ int main(int argc, char * argv[])
                 cores[r->m_core_id]->add_trace(r);
         } 
     }
+    std::cout << "Initial fill done\n";
 
    bool done = false;
    bool timeout = false;
+   uint64_t num_traces_added = NUM_INITIAL_FILL;
    while(!done && !timeout)
    {
 	done = true;
    	for(int i = 0; i < NUM_CORES; i++)
    	{
 	   cores[i]->tick();
+       
+       if((num_traces_added < NUM_INSTRUCTIONS) && (cores[i]->must_add_trace()))
+       {
+           Request *r = tp.generateRequest();
+
+           if(r->m_core_id >= 0 && r->m_core_id < NUM_CORES)
+           {
+               cores[r->m_core_id]->add_trace(r);
+           }
+           
+           if(num_traces_added % 1000000 == 0)
+           {
+               std::cout << "Number of traces added = " << num_traces_added << "\n";
+           }
+
+          num_traces_added++;
+       }
+
 	   done = done & cores[i]->is_done(); 
-	   if(cores[i]->is_done())
-	   {
-		   std::cout << "Core " << i << " done in " << cores[i]->m_clk << " cycles" << std::endl;
-	   }
+	   //if(cores[i]->is_done())
+	   //{
+	   //    std::cout << "Core " << i << " done in " << cores[i]->m_clk << " cycles" << std::endl;
+	   //}
 	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
 	   {
 		   std::cout << "Core " << i << " timed out " << std::endl;
@@ -158,7 +181,30 @@ int main(int argc, char * argv[])
 
     for(int i = 0; i < NUM_CORES;i++)
     {
-        cores[i]->m_rob->printContents();
+        //cores[i]->m_rob->printContents();
+        //
+        std::cout << "Cycles = " << cores[i]->m_clk << "\n";
+        std::cout << "Instructions = " << (tp.last_ts[i] - tp.warmup_period) << "\n"; 
+        std::cout << "IPC = " << (double) (tp.last_ts[i] - tp.warmup_period)/(cores[i]->m_clk) << "\n";
+        std::cout << "--------Core " << i << " -------------" << std::endl; 
+        std::cout << "[L1] Number of data hits = " << l1_data_caches[i]->num_data_hits << std::endl;
+        std::cout << "[L1] Number of translation hits = " << l1_data_caches[i]->num_tr_hits << std::endl;
+        std::cout << "[L1] Number of data misses = " << l1_data_caches[i]->num_data_misses << std::endl;
+        std::cout << "[L1] Number of translation misses = " << l1_data_caches[i]->num_tr_misses << std::endl;
+        std::cout << "[L1] Number of MSHR data hits = " << l1_data_caches[i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L1] Number of MSHR translation hits = " << l1_data_caches[i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L1] Number of data accesses = " << l1_data_caches[i]->num_data_accesses << std::endl;
+        std::cout << "[L1] Number of translation accesses = " << l1_data_caches[i]->num_tr_accesses << std::endl;
+        std::cout << "[L1] MPKI = " << (double) (l1_data_caches[i]->num_data_misses * 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
+        
+        std::cout << "[L2] Number of data hits = " << l2_data_caches[i]->num_data_hits << std::endl;
+        std::cout << "[L2] Number of translation hits = " << l2_data_caches[i]->num_tr_hits << std::endl;
+        std::cout << "[L2] Number of data misses = " << l2_data_caches[i]->num_data_misses << std::endl;
+        std::cout << "[L2] Number of translation misses = " << l2_data_caches[i]->num_tr_misses << std::endl;
+        std::cout << "[L2] Number of MSHR data hits = " << l2_data_caches[i]->num_mshr_data_hits << std::endl;
+        std::cout << "[L2] Number of MSHR translation hits = " << l2_data_caches[i]->num_mshr_tr_hits << std::endl;
+        std::cout << "[L2] Number of data accesses = " << l2_data_caches[i]->num_data_accesses << std::endl;
+        std::cout << "[L2] Number of translation accesses = " << l2_data_caches[i]->num_tr_accesses << std::endl;
+        std::cout << "[L1] MPKI = " << (double) ((l2_data_caches[i]->num_data_misses  + l2_data_caches[i]->num_tr_misses)* 1000.0)/(tp.last_ts[i] - tp.warmup_period) << std::endl; 
     }
-
 }

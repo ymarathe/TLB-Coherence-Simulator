@@ -332,11 +332,11 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
         MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
         m_mshr_entries.insert(std::make_pair(req, mshr_entry));
-	auto it = m_mshr_entries.find(req);
-	//Ensure insertion in the MSHR
-	assert(it != m_mshr_entries.end());
+	    auto it = m_mshr_entries.find(req);
+	    //Ensure insertion in the MSHR
+	    assert(it != m_mshr_entries.end());
     	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-   	num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+   	    num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
     }
     else
     {

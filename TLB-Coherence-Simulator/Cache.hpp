@@ -96,7 +96,7 @@ public:
             std::vector<CacheLine> set;
             for(int j = 0; j < m_associativity; j++)
             {
-                set.emplace_back(CacheLine());
+                set.emplace_back();
                 
                 //Want to associate a coherence protocol object with each cache line
                 CoherenceProtocol *coherence_prot = new MOESIProtocol();
@@ -123,7 +123,7 @@ public:
         
         m_is_callback_initialized = false;
     }
-    
+
     void initialize_callback();
     uint64_t get_index(const uint64_t addr);
     uint64_t get_tag(const uint64_t addr);

@@ -219,7 +219,7 @@ Request* TraceProcessor::generateRequest()
             tid = buf2[idx].tid;
             curr_ts[idx] = buf2[idx].ts;
 
-	    std::cout << "Trace read: va = " << std::hex << va << std::dec << ", tid = " << tid << ", ts = " << buf2[idx].ts << std::endl;
+	        //std::cout << "Trace read: va = " << std::hex << va << std::dec << ", tid = " << tid << ", ts = " << buf2[idx].ts << std::endl;
 
             if(curr_ts[idx] == last_ts[idx])
             {
