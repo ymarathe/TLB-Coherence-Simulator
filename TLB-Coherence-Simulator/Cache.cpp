@@ -524,6 +524,10 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             {
                 std::shared_ptr<Request> req = std::make_shared<Request>(r);
                 req->m_core_id = m_core_id;
+
+                //If TLBs are relaying coherence update, relay co-tag address
+                req->m_addr = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : req->m_addr;  
+
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(req, coh_action));
             }
         }
@@ -557,9 +561,8 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
         {
             assert(m_cache_sys->get_is_translation_hier());
             unsigned int index, hit_pos;
-            if(is_found_by_cotag(addr, index, hit_pos))
+            if(is_found_by_cotag(addr, tid, index, hit_pos))
             {
-                std::cout << "In level = " << m_cache_level << ", in hier = " << m_cache_sys->get_is_translation_hier() << ", found co-tag = " << std::hex << "0x" << addr << std::dec << std::endl; 
                 CacheLine &line = m_tagStore[index][hit_pos];
                 kind coh_txn_kind = txnKindForCohAction(coh_action);
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
@@ -568,6 +571,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
+                needs_state_correction = (coh_action == BROADCAST_TRANSLATION_READ);
             }
         }
     }
@@ -578,19 +582,36 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             unsigned int originating_core = r.m_core_id;
             assert(originating_core != m_core_id);
             unsigned int index = (originating_core < m_core_id) ? originating_core : (originating_core - m_core_id - 1);
+            //Since we are sending back the request that arrived, don't change the request address here
             m_cache_sys->m_other_cache_sys[index]->m_coh_act_list.insert(std::make_pair(std::make_shared<Request>(r), coh_action));
+            if(!m_cache_sys->get_is_translation_hier())
+            {
+                m_cache_sys->m_other_cache_sys[(index + NUM_CORES - 1)]->m_coh_act_list.insert(std::make_pair(std::make_shared<Request>(r), coh_action));
+            }
         }
         else
         {
-            unsigned int hit_pos;
-            uint64_t tag = get_tag(addr);
-            uint64_t index = get_index(addr);
-            std::vector<CacheLine>& set = m_tagStore[index];
-            
-            if(is_found(set, tag, is_translation, tid, hit_pos))
+            if(m_cache_type != TRANSLATION_ONLY)
             {
-                CacheLine &line = set[hit_pos];
-                line.m_coherence_prot->forceCoherenceState(SHARED);
+                unsigned int hit_pos;
+                uint64_t tag = get_tag(addr);
+                uint64_t index = get_index(addr);
+                std::vector<CacheLine>& set = m_tagStore[index];
+                
+                if(is_found(set, tag, is_translation, tid, hit_pos))
+                {
+                    CacheLine &line = set[hit_pos];
+                    line.m_coherence_prot->forceCoherenceState(SHARED);
+                }
+            }
+            else
+            {
+                unsigned int index, hit_pos;
+                if(is_found_by_cotag(addr, tid, index, hit_pos))
+                {
+                    CacheLine &line = m_tagStore[index][hit_pos];
+                    line.m_coherence_prot->forceCoherenceState(SHARED);
+                }
             }
         }
     }
@@ -738,14 +759,14 @@ void Cache::initialize_callback()
      m_callback = std::bind(&Cache::release_lock, this, std::placeholders::_1);
 }
 
-bool Cache::is_found_by_cotag(uint64_t pom_tlb_addr, unsigned int &index, unsigned int &hit_pos)
+bool Cache::is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int &index, unsigned int &hit_pos)
 {
     for(int i = 0; i < m_num_sets; i++)
     {
         for(int j = 0; j < m_associativity; j++)
         {
             CacheLine &line = m_tagStore[i][j];
-            if(line.cotag == pom_tlb_addr)
+            if(line.cotag == pom_tlb_addr && line.tid == tid)
             {
                 index = i;
                 hit_pos = j;

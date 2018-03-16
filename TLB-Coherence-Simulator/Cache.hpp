@@ -150,6 +150,6 @@ public:
     bool get_is_large_page_tlb();
     void set_core_id(unsigned int core_id);
     unsigned int get_core_id();
-    bool is_found_by_cotag(uint64_t pom_tlb_addr, unsigned int &index, unsigned int &hit_pos);
+    bool is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int &index, unsigned int &hit_pos);
 };
 #endif /* Cache_hpp */

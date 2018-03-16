@@ -14,6 +14,7 @@
 //Defines
 #define ADDR_SIZE 48
 #define MIN_NUM_CACHES 2
+#define NUM_CORES 8
 #define MIN_NUM_TLBS 4
 #define stringify(name) #name
 

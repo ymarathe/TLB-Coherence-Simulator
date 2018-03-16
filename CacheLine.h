@@ -46,7 +46,14 @@ public:
     
     friend std::ostream& operator << (std::ostream &out, const CacheLine &l)
     {
-        out << "|" << l.valid << "|" << l.dirty << "|" << l.lock << "|" << l.is_translation << "|" << std::hex << l.tag << "| -- ";
+        if(l.is_translation)
+        {
+            out << "|" << l.valid << "|" << l.dirty << "|" << l.lock << "|" << l.is_translation << "|" << std::hex << l.tag << "|" << l.cotag << "| --" ;
+        }
+        else
+        {
+            out << "|" << l.valid << "|" << l.dirty << "|" << l.lock << "|" << l.is_translation << "|" << std::hex << l.tag << "| -- ";
+        }
         return out;
     }
 };

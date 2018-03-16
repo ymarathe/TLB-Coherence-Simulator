@@ -13,10 +13,10 @@
 #include "Core.hpp"
 #include "TraceProcessor.hpp"
 #include <memory>
+#include "utils.hpp"
 
-#define NUM_CORES 8 
-#define NUM_INSTRUCTIONS 10000000 
-#define NUM_INITIAL_FILL 100000
+#define NUM_INSTRUCTIONS 1000000
+#define NUM_INITIAL_FILL 10000 
 
 int main(int argc, char * argv[])
 {
@@ -43,12 +43,12 @@ int main(int argc, char * argv[])
     
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(16384, 4, 4096, 75, TRANSLATION_ONLY));
     std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(4096, 4, 2 * 1024 * 1024, 75, TRANSLATION_ONLY, true));
-    
-    /*
+   
+    /* 
     std::shared_ptr<Cache> l3_tlb_small = std::make_shared<Cache>(Cache(8, 8, 4096, 1, TRANSLATION_ONLY));
     std::shared_ptr<Cache> l3_tlb_large = std::make_shared<Cache>(Cache(8, 8, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true));
     */
-    
+
     std::vector<std::shared_ptr<CacheSys>> data_hier;
     std::vector<std::shared_ptr<CacheSys>> tlb_hier;
     std::vector<std::shared_ptr<Cache>> l1_data_caches;
@@ -82,7 +82,7 @@ int main(int argc, char * argv[])
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 14, TRANSLATION_ONLY)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 14, TRANSLATION_ONLY, true)));
-        
+       
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i]);
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i + 1]);
         tlb_hier[i]->add_cache_to_hier(l2_tlb[2 * i]);
@@ -109,23 +109,27 @@ int main(int argc, char * argv[])
         {
             if(i != j)
             {
+                //Data caches see other data caches
                 data_hier[i]->add_cachesys(data_hier[j]);
-                data_hier[i]->add_cachesys(tlb_hier[j]);
+
+                //TLB see other data caches
+                tlb_hier[i]->add_cachesys(data_hier[j]);
             }
         }
     }
-    
-    //Make TLB hierarchies aware of each other
-    /*for(int i = 0; i < NUM_CORES; i++)
+
+    for(int i = 0; i < NUM_CORES; i++)
     {
         for(int j = 0; j < NUM_CORES; j++)
         {
             if(i != j)
             {
-                tlb_hier[i]->add_cachesys(tlb_hier[j]);
+                //Data caches see other TLBs 
+                //Done this way because indexing is dependent on having all data caches first, and then all the TLBs
+                data_hier[i]->add_cachesys(tlb_hier[j]);
             }
         }
-    }*/
+    }
     
     std::cout << "Initial fill\n";
     for(int i = 0; i < NUM_INITIAL_FILL; i++)
@@ -178,7 +182,6 @@ int main(int argc, char * argv[])
 	   }
  	}
    }
-
 
     for(int i = 0; i < NUM_CORES;i++)
     {
