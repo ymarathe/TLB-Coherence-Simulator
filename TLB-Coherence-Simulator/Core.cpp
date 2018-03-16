@@ -272,3 +272,8 @@ bool Core::must_add_trace()
 {
     return (traceVec.size() < 1000000);
 }
+
+void Core::pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation)
+{
+    m_tlb_hier->pom_tlb_invalidate(addr, tid, is_translation);
+}

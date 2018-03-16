@@ -205,3 +205,28 @@ unsigned int CacheSys::get_core_id()
 {
     return m_core_id;
 }
+
+void CacheSys::clflush(uint64_t addr, uint64_t tid, bool is_translation)
+{
+    for(int i = 0; i < m_caches.size(); i++)
+    {
+        m_caches[i]->invalidate(addr, tid, is_translation);
+    }
+
+    if(is_translation)
+    {
+        m_core->pom_tlb_invalidate(addr, tid, is_translation);
+    }
+}
+
+void CacheSys::pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation)
+{
+    assert(m_is_translation_hier);
+    assert(is_translation);
+
+    unsigned long pom_tlb_small_idx = m_caches.size() - 2; 
+    unsigned long pom_tlb_large_idx = m_caches.size() - 1;
+
+    m_caches[pom_tlb_small_idx]->invalidate(addr, tid, is_translation);
+    m_caches[pom_tlb_large_idx]->invalidate(addr, tid, is_translation); 
+}

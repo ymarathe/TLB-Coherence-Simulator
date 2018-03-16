@@ -97,6 +97,8 @@ public:
     bool is_done();
 
     bool must_add_trace();
+
+    void pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation);
 };
 
 #endif /* Core_hpp */

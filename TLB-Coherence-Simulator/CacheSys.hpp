@@ -77,6 +77,10 @@ public:
     bool get_is_translation_hier();
     
     unsigned int get_core_id();
+
+    void clflush(const uint64_t addr, uint64_t tid, bool is_translation);
+
+    void pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation);
     
 };
 
