@@ -182,6 +182,7 @@ Request* TraceProcessor::generateRequest()
     uint64_t va, tid;
     bool is_large, is_write;
     bool is_multicore = strcasecmp(fmt, "-m") == 0;
+    uint64_t tid_offset = 0;
 
     if(idx != -1)
     {
@@ -194,11 +195,7 @@ Request* TraceProcessor::generateRequest()
 
             if(curr_ts[idx] == last_ts[idx])
             {
-                //TODO: ymarathe:: thread id is the same as core id right now.
-                //Hyperthreading?
-                //Request req(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-                //last_ts[idx]++;
                 used_up[idx] = true;
                 return req;
             }
@@ -219,15 +216,15 @@ Request* TraceProcessor::generateRequest()
             tid = buf2[idx].tid;
             curr_ts[idx] = buf2[idx].ts;
 
-	        //std::cout << "Trace read: va = " << std::hex << va << std::dec << ", tid = " << tid << ", ts = " << buf2[idx].ts << std::endl;
-
             if(curr_ts[idx] == last_ts[idx])
             {
-                //TODO: ymarathe:: thread id is the same as core id right now.
-                //Hyperthreading?
-                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
-                //last_ts[idx]++;
+                //Threads switch about every context switch interval
+                uint64_t tid = (idx + tid_offset) % NUM_CORES;
+                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, tid, is_large, idx);
                 used_up[idx] = true;
+
+                //For every instruction added, decrement context_switch_count
+                context_switch_count--;
                 return req;
             }
             else if(curr_ts[idx] > last_ts[idx])
@@ -236,8 +233,19 @@ Request* TraceProcessor::generateRequest()
                 req->m_is_memory_acc = false;
                 req->m_core_id = idx;
                 last_ts[idx]++;
+
+                //For every instruction added, decrement context_switch_count
+                context_switch_count--;
                 return req;
             }
+
+            if(context_switch_count == 0)
+            {
+                //When context switch count is 0, reinitialize tid offset 
+                context_switch_count = (5000000000 - 3000000) * (rand()/(double) RAND_MAX);  
+                tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
+            }
+
         }
     }
     

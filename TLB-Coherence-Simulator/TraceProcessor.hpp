@@ -28,6 +28,7 @@ private:
     unsigned int num_cores;
     int global_index;
     uint64_t *curr_ts;
+    uint64_t context_switch_count;
     
 public:
     //Variables
@@ -58,6 +59,8 @@ public:
         {
         	last_ts[i] = warmup_period;
         }
+
+        context_switch_count = (40000000000 - 24000000) * (rand()/(double) RAND_MAX);  
     }
 
     ~TraceProcessor()
@@ -72,6 +75,7 @@ public:
         
         delete [] last_ts;
         delete [] curr_ts;
+
     }
     
     //Methods
