@@ -213,7 +213,6 @@ Request* TraceProcessor::generateRequest()
             va = buf2[idx].va;
             is_large = buf2[idx].large;
             is_write = (bool)((buf2[idx].write != 0)? true: false);
-            tid = buf2[idx].tid;
             curr_ts[idx] = buf2[idx].ts;
 
             if(curr_ts[idx] == last_ts[idx])
@@ -225,6 +224,10 @@ Request* TraceProcessor::generateRequest()
 
                 //For every instruction added, decrement context_switch_count
                 context_switch_count--;
+                if(context_switch_count == 0)
+                {
+                    tid_offset = switch_threads();
+                }
                 return req;
             }
             else if(curr_ts[idx] > last_ts[idx])
@@ -236,14 +239,16 @@ Request* TraceProcessor::generateRequest()
 
                 //For every instruction added, decrement context_switch_count
                 context_switch_count--;
+                if(context_switch_count == 0)
+                {
+                    tid_offset = switch_threads();
+                }
                 return req;
             }
 
-            if(context_switch_count == 0)
+            if(context_switch_count % 100000 == 0)
             {
-                //When context switch count is 0, reinitialize tid offset 
-                context_switch_count = (5000000000 - 3000000) * (rand()/(double) RAND_MAX);  
-                tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
+                std::cout << "Context switch count = " << context_switch_count << "\n";
             }
 
         }
@@ -259,4 +264,20 @@ Request* TraceProcessor::generateRequest()
     Request *req = new Request();
     req->m_is_memory_acc = false;
     return req; 
+}
+
+uint64_t TraceProcessor::switch_threads()
+{
+    //When context switch count is 0, reinitialize tid offset
+    context_switch_count = (5000000000 - 3000000) * (rand()/(double) RAND_MAX);
+    uint64_t tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
+    std::cout << "Switching threads\n";
+
+    for(int i = 0; i < NUM_CORES; i++)
+    {
+        uint64_t tid = (i + tid_offset) % NUM_CORES;
+        std::cout << "Core " << i << " now running thread = " << tid << "\n";
+    }
+
+    return tid_offset;
 }

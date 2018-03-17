@@ -28,7 +28,6 @@ private:
     unsigned int num_cores;
     int global_index;
     uint64_t *curr_ts;
-    uint64_t context_switch_count;
     
 public:
     //Variables
@@ -41,6 +40,7 @@ public:
     uint64_t l2d_lat, l3d_lat, vl_lat, dram_lat;
     uint64_t   l3_small_tlb_size = 1024*1024;
     uint64_t   l3_large_tlb_size = 256*1024;
+    uint64_t context_switch_count;
     
     //Constructor
     TraceProcessor(unsigned int num_cores = 8) : num_cores(num_cores)
@@ -61,6 +61,7 @@ public:
         }
 
         context_switch_count = (40000000000 - 24000000) * (rand()/(double) RAND_MAX);  
+        std::cout << "Context switch count = " << context_switch_count << "\n";
     }
 
     ~TraceProcessor()
@@ -88,6 +89,8 @@ public:
     int getNextEntry();
     
     Request* generateRequest();
+
+    uint64_t switch_threads();
     
 };
 

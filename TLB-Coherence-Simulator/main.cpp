@@ -15,8 +15,8 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_INSTRUCTIONS 1000000
-#define NUM_INITIAL_FILL 10000 
+#define NUM_INSTRUCTIONS 100000000 
+#define NUM_INITIAL_FILL 1000 
 
 int main(int argc, char * argv[])
 {
@@ -166,14 +166,10 @@ int main(int argc, char * argv[])
                std::cout << "Number of traces added = " << num_traces_added << "\n";
            }
 
-          num_traces_added++;
+           num_traces_added++;
        }
 
 	   done = done & cores[i]->is_done(); 
-	   //if(cores[i]->is_done())
-	   //{
-	   //    std::cout << "Core " << i << " done in " << cores[i]->m_clk << " cycles" << std::endl;
-	   //}
 	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
 	   {
 		   std::cout << "Core " << i << " timed out " << std::endl;

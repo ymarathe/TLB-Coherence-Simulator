@@ -112,10 +112,13 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
     
     Request req(evict_addr, line.is_translation ? TRANSLATION_WRITEBACK : DATA_WRITEBACK, line.tid, line.is_large, m_core_id);
     
-    if(line.dirty)
+    if(line.dirty || line.is_translation)
     {
         if(lower_cache != nullptr)
         {
+            CacheType lower_cache_type = lower_cache->get_cache_type();
+            bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
+            req.m_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(req.m_addr, req.m_tid, req.m_is_large, false) : req.m_addr;
             RequestStatus val = lower_cache->lookupAndFillCache(req, 0, line.m_coherence_prot->getCoherenceState());
             line.m_coherence_prot->forceCoherenceState(INVALID);
             
