@@ -83,6 +83,12 @@ typedef struct {
     uint64_t tid;
 } trace_tlb_tid_entry_t;
 
+typedef struct {
+    uint64_t ts;
+    int core_id;
+    int num_cores;
+} trace_shootdown_entry_t;
+
 kind txnKindForCohAction(CoherenceAction coh_action);
 
 std::string trim(const std::string& str);

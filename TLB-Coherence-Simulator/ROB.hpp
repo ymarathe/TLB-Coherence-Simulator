@@ -69,6 +69,7 @@ public:
     bool can_issue();
     bool is_empty();
     void peek_commit_ptr();
+    void peek(unsigned int ptr);
 };
 
 #endif /* ROB_hpp */

@@ -15,8 +15,8 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_INSTRUCTIONS 100000000 
-#define NUM_INITIAL_FILL 1000 
+#define NUM_INSTRUCTIONS 5000000 
+#define NUM_INITIAL_FILL 100 
 
 int main(int argc, char * argv[])
 {
@@ -82,6 +82,11 @@ int main(int argc, char * argv[])
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 14, TRANSLATION_ONLY)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 14, TRANSLATION_ONLY, true)));
+
+        l1_tlb[2 * i]->add_traceprocessor(&tp);
+        l1_tlb[2 * i + 1]->add_traceprocessor(&tp);
+        l2_tlb[2 * i]->add_traceprocessor(&tp);
+        l2_tlb[2 * i + 1]->add_traceprocessor(&tp);
        
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i]);
         tlb_hier[i]->add_cache_to_hier(l1_tlb[2 * i + 1]);
@@ -135,6 +140,7 @@ int main(int argc, char * argv[])
     for(int i = 0; i < NUM_INITIAL_FILL; i++)
     {
         Request *r = tp.generateRequest();
+
         if(r->m_core_id >=0 && r->m_core_id < NUM_CORES)
         {
                 cores[r->m_core_id]->add_trace(r);
@@ -278,4 +284,34 @@ int main(int argc, char * argv[])
     std::cout << "[L3 LARGE TLB] Number of data accesses = " << l3_tlb_large->num_data_accesses << std::endl;
     std::cout << "[L3 LARGE TLB] Number of translation accesses = " << l3_tlb_large->num_tr_accesses << std::endl;
     std::cout << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
+
+    std::cout << "----------------------------------------------------------------------\n";
+
+    for(auto it = tp.presence_map_small_page.begin(); it != tp.presence_map_small_page.end(); it++)
+    {
+        const RequestDesc &r = it->first;
+        std::cout << r << std::dec << ": ";
+
+        for(auto setit = it->second.begin(); setit != it->second.end(); setit++)
+        {
+            std::cout << *setit << ",";
+        }
+
+        std::cout << "\n";
+    }
+
+    std::cout << "----------------------------------------------------------------------\n";
+
+    for(auto it = tp.presence_map_large_page.begin(); it != tp.presence_map_large_page.end(); it++)
+    {
+        const RequestDesc &r = it->first;
+        std::cout << r << std::dec << ": ";
+
+        for(auto setit = it->second.begin(); setit != it->second.end(); setit++)
+        {
+            std::cout << *setit << ",";
+        }
+
+        std::cout << "\n";
+    }
 }

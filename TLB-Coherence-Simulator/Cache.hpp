@@ -19,6 +19,7 @@
 #include "CacheLine.h"
 #include "Request.hpp"
 #include "Coherence.hpp"
+#include "TraceProcessor.hpp"
 
 class CacheSys;
 class Core;
@@ -71,6 +72,8 @@ private:
     unsigned int m_core_id;
     
     bool m_is_callback_initialized;
+
+    TraceProcessor* m_tp_ptr;
     
 public:
     uint64_t num_data_hits = 0;
@@ -133,6 +136,7 @@ public:
     void invalidate(const uint64_t addr, uint64_t tid, bool is_translation);
     void evict(uint64_t set_num, const CacheLine &line);
     RequestStatus lookupAndFillCache(Request &r, unsigned int curr_latency = 0, CoherenceState propagate_coh_state = INVALID);
+    bool lookupCache(Request &r);
     void add_lower_cache(const std::weak_ptr<Cache>& c);
     void add_higher_cache(const std::weak_ptr<Cache>& c);
     void set_level(unsigned int level);
@@ -151,5 +155,6 @@ public:
     void set_core_id(unsigned int core_id);
     unsigned int get_core_id();
     bool is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int &index, unsigned int &hit_pos);
+    void add_traceprocessor(TraceProcessor *tp);
 };
 #endif /* Cache_hpp */

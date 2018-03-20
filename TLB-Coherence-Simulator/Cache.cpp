@@ -143,6 +143,50 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             assert(lower_cache->is_found(set, tag, line.is_translation, line.tid, hit_pos));
         }
     }
+
+    //Not a part of cache functionality, but needs to be done to support TLB shootdown functionality nonetheless
+    //If we're in penultimate TLB and performing an eviction, update the presence map
+    if(m_cache_sys->get_is_translation_hier() && m_cache_sys->is_penultimate_level(m_cache_level))
+    {
+        Request req(evict_addr, TRANSLATION_READ, line.tid, line.is_large, m_core_id);
+        bool is_found = false;
+
+        for(int i = 0; i < m_higher_caches.size(); i++)
+        {
+            auto higher_cache = m_higher_caches[i].lock();
+            is_found = is_found | higher_cache->lookupCache(req);
+        }
+
+        if(!is_found)
+        {
+            std::cout << "[EVICTION] Removing from presence map = " << std::hex << req << std::dec;
+            m_tp_ptr->remove_from_presence_map(evict_addr, line.tid, line.is_large, m_core_id);
+        }
+        std::cout << "[EVICTION]: In level = " << m_cache_level << " and in hier = " << m_cache_sys->get_is_translation_hier() << "\n";
+    }
+}
+
+bool Cache::lookupCache(Request &req)
+{
+    unsigned int hit_pos;
+
+    uint64_t addr = req.m_addr;
+    kind txn_kind = req.m_type;
+    uint64_t tid = req.m_tid;
+    bool is_large = req.m_is_large;
+
+    uint64_t tag = get_tag(addr);
+    uint64_t index = get_index(addr);
+    std::vector<CacheLine>& set = m_tagStore[index];
+
+    bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
+
+    if(is_hit(set, tag, is_translation, tid, hit_pos))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency, CoherenceState propagate_coh_state)
@@ -225,8 +269,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         
         handle_coherence_action(coh_action, req, curr_latency, true);
         
-	    num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-	    num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+        num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
 
         return REQUEST_HIT;
     }
@@ -293,11 +337,11 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             mshr_iter->second->m_is_core_agnostic = true;
         }
 
-	    num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-	    num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+        num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
 
-    	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-   	    num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
+       num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
         {
@@ -452,7 +496,7 @@ void Cache::set_cache_sys(CacheSys *cache_sys)
 void Cache::release_lock(std::shared_ptr<Request> r)
 {
     auto it = m_mshr_entries.find(*r);
-    
+
     if(it != m_mshr_entries.end())
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
@@ -476,7 +520,8 @@ void Cache::release_lock(std::shared_ptr<Request> r)
     }
     
     //We are in L1
-    if(m_cache_level == 1 && m_cache_type == DATA_ONLY && !r->is_translation_request())
+    //if(m_cache_level == 1 && m_cache_type == DATA_ONLY && !r->is_translation_request())
+    if(m_cache_level == 1 && m_cache_type == DATA_ONLY)
     {
         m_core->m_rob->mem_mark_done(*r);
     }
@@ -531,6 +576,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 //If TLBs are relaying coherence update, relay co-tag address
                 req->m_addr = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : req->m_addr;  
 
+                //TODO: Apply optimization to relay coherence updates to TLBs only on translation requests here
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(req, coh_action));
             }
         }
@@ -571,6 +617,8 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
+                    std::cout << "[SHOOTDOWN] Invalidate line via co-tag on core " << m_core_id << "\n";
+                    std::cout << std::hex << r << std::dec;
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
                 }
@@ -682,6 +730,7 @@ void Cache::propagate_release_lock(std::shared_ptr<Request> r)
                 bool is_last_tr_level = m_cache_sys->is_last_level(m_cache_level) && m_cache_sys->get_is_translation_hier();
                 
                 if(((r->is_translation_request() && higher_cache->get_cache_type() != DATA_ONLY) ||
+                    ((r->m_type == TRANSLATION_WRITE) && higher_cache->get_cache_type() == DATA_ONLY) ||
                     (!r->is_translation_request() && higher_cache->get_cache_type() != TRANSLATION_ONLY)) && \
                     ((is_last_data_level && (r->m_core_id == higher_cache->get_core_id()) && !r->m_is_core_agnostic) ||
                     (is_last_data_level && r->m_is_core_agnostic) ||
@@ -778,4 +827,9 @@ bool Cache::is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int 
         }
     }
     return false;
+}
+
+void Cache::add_traceprocessor(TraceProcessor *tp)
+{
+    m_tp_ptr = tp;
 }

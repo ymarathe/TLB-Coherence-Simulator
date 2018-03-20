@@ -64,6 +64,12 @@ private:
     std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
     
     std::deque<Request*> traceVec;
+
+    bool stall;
+
+    unsigned int tr_coh_issue_ptr;
+
+    uint64_t num_stall_cycles = 0;
     
 public:
     std::shared_ptr<ROB> m_rob;
@@ -78,6 +84,7 @@ public:
             assert(!cache_hier->get_is_translation_hier());
             assert(tlb_hier->get_is_translation_hier());
             m_clk = 0;
+            stall = false;
         }
     
     bool interfaceHier(bool ll_interface_complete);

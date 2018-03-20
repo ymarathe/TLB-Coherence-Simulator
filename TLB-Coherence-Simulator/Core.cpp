@@ -178,9 +178,33 @@ void Core::tick()
     m_tlb_hier->tick();
     m_cache_hier->tick();
     
-    m_num_retired += m_rob->retire(m_clk);
+    if(stall)
+    {
+        num_stall_cycles++;
+        //Till translation coherence is serviced, stall issue
+        if(m_rob->m_window[tr_coh_issue_ptr].done)
+        {
+            //If translation coherence request is serviced, issue CLFLUSH
+            uint64_t addr = m_rob->m_window[tr_coh_issue_ptr].req->m_addr;
+            uint64_t tid = m_rob->m_window[tr_coh_issue_ptr].req->m_tid;
+            uint64_t is_translation = true;
+
+            m_cache_hier->clflush(addr, tid, is_translation);
+
+            for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
+            {
+                Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
+                assert(!m_cache_hier->m_caches[i]->lookupCache(*r));
+            }
+
+            stall = false;
+            std::cout << "Number of stall cycles = " << num_stall_cycles << "\n";
+        }
+    }
     
-    for(auto it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end();)
+    m_num_retired += m_rob->retire(m_clk);
+
+    for(auto it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end() && !stall;)
     {
         Request req = it->first;
         bool can_issue = it->second;
@@ -202,14 +226,29 @@ void Core::tick()
             req.update_request_type_from_core(DATA_WRITE);
         }
         
-        if(can_issue)
+        if(can_issue && (req.m_type != TRANSLATION_WRITE))
         {
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
 
             if(data_req_status != REQUEST_RETRY)
             {
-	    	//std::cout << "At clk = " << m_clk << ", sending request = " << std::hex << req << std::dec;
                 it = m_rob->is_request_ready.erase(it);
+                break;
+            }
+            else
+            {
+                it++;
+            }
+        }
+        else if(req.m_type == TRANSLATION_WRITE)
+        {
+            std::cout << "Issuing translation coherence write to data hierarchy\n";
+            RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+            if(data_req_status != REQUEST_RETRY)
+            {
+                it = m_rob->is_request_ready.erase(it);
+                stall = true;
+                std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
                 break;
             }
             else
@@ -221,15 +260,14 @@ void Core::tick()
         {
             it++;
         }
-       
     }
 
-    for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue(); i++)
+    for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue() && !stall; i++)
     {
         Request *req = traceVec.front();
         kind act_req_kind = req->m_type;
         
-        if(req->m_is_memory_acc)
+        if(req->m_is_memory_acc && (req->m_type != TRANSLATION_WRITE))
         {
             req->update_request_type_from_core(TRANSLATION_READ);
             RequestStatus tlb_req_status = m_tlb_hier->lookupAndFillCache(*req);
@@ -239,6 +277,28 @@ void Core::tick()
                 m_rob->issue(req->m_is_memory_acc, req, m_clk);
                 traceVec.pop_front();
             }
+        }
+        else if(req->m_type == TRANSLATION_WRITE)
+        {
+            std::cout << "Encountered TLB shootdown request on Core " << m_core_id << "\n";
+            std::cout << std::hex << (*req) << std::dec;
+
+            //We generate a store to the POM-TLB address here
+            req->m_addr = getL3TLBAddr(req->m_addr, req->m_tid, req->m_is_large, false);
+
+            //Note the issue_ptr in the ROB
+            tr_coh_issue_ptr = m_rob->m_issue_ptr;
+
+            //Issue in ROB and remove from issue queue
+            m_rob->issue(req->m_is_memory_acc, req, m_clk);
+            traceVec.pop_front();
+
+            //Mark as translation done in is_request_ready queue
+            //Ready for dispatch to data hierarchy
+            m_rob->mem_mark_translation_done(*req);
+
+            m_rob->peek(tr_coh_issue_ptr);
+
         }
         else
         {

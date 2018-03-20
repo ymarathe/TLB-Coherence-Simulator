@@ -106,3 +106,8 @@ void ROB::peek_commit_ptr()
 {
 	std::cout << "[" << m_window[m_commit_ptr].req << "] Request at commit ptr = " << std::hex << *(m_window[m_commit_ptr].req) << std::dec;
 }
+
+void ROB::peek(unsigned int ptr)
+{
+	std::cout << "[" << m_window[ptr].req << "] Request at ptr = " << std::hex << *(m_window[ptr].req) << std::dec;
+}
