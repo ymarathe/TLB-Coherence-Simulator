@@ -15,7 +15,7 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_INSTRUCTIONS 5000000 
+#define NUM_INSTRUCTIONS 50000000 
 #define NUM_INITIAL_FILL 100 
 
 int main(int argc, char * argv[])

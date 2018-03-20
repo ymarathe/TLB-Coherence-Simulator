@@ -77,6 +77,7 @@ void Cache::invalidate(const uint64_t addr, uint64_t tid, bool is_translation)
     {
         std::cout << "Cache " << m_cache_level << ":" << e.what() << std::endl;
     }
+
 }
 
 void Cache::evict(uint64_t set_num, const CacheLine &line)
@@ -621,6 +622,12 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                     std::cout << std::hex << r << std::dec;
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
+
+                    if(m_cache_sys->get_is_translation_hier() && m_cache_sys->is_penultimate_level(m_cache_level))
+                    {
+                        std::cout << "[COHERENCE_INVALIDATION] Removing from presence map: " << std::hex << "Addr = " << addr << std::dec << ", tid = " << tid << ", is_large = " << is_large << ", on core = " << m_core_id << "\n";
+                        m_tp_ptr->remove_from_presence_map(addr, tid, is_large, m_core_id);
+                    }
                 }
                 needs_state_correction = (coh_action == BROADCAST_TRANSLATION_READ);
             }
@@ -832,4 +839,9 @@ bool Cache::is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int 
 void Cache::add_traceprocessor(TraceProcessor *tp)
 {
     m_tp_ptr = tp;
+}
+
+TraceProcessor* Cache::get_traceprocessor()
+{
+    return m_tp_ptr;
 }

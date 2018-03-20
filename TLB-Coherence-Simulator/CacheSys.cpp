@@ -212,21 +212,24 @@ void CacheSys::clflush(uint64_t addr, uint64_t tid, bool is_translation)
     {
         m_caches[i]->invalidate(addr, tid, is_translation);
     }
-
-    if(is_translation)
-    {
-        m_core->pom_tlb_invalidate(addr, tid, is_translation);
-    }
 }
 
-void CacheSys::pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation)
+void CacheSys::tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large)
 {
     assert(m_is_translation_hier);
-    assert(is_translation);
 
-    unsigned long pom_tlb_small_idx = m_caches.size() - 2; 
-    unsigned long pom_tlb_large_idx = m_caches.size() - 1;
+    int start = (is_large) ? 1 : 0;
 
-    m_caches[pom_tlb_small_idx]->invalidate(addr, tid, is_translation);
-    m_caches[pom_tlb_large_idx]->invalidate(addr, tid, is_translation); 
+    for(int i = start; i < m_caches.size(); i += 2)
+    {
+        m_caches[i]->invalidate(addr, tid, true);
+
+        //If penultimate level, remove entry from presence map 
+        if(is_penultimate_level(m_caches[i]->get_level()))
+        {
+            TraceProcessor *tp = m_caches[i]->get_traceprocessor();
+            std::cout << "[INVALIDATION] Removing from presence map, Addr = " << std::hex << addr << std::dec << ", tid = " << tid << ", is_large = " << m_caches[i]->get_is_large_page_tlb() << ", on core = " << m_core_id << "\n"; 
+            tp->remove_from_presence_map(addr, tid, m_caches[i]->get_is_large_page_tlb(), m_core_id);
+        }
+    }
 }

@@ -129,9 +129,6 @@ void TraceProcessor::verifyOpenTraceFiles()
     }
 
     fread((void*)buf3, sizeof(trace_shootdown_entry_t), 1, shootdown_fp);
-    std::cout << buf3->ts << std::endl;
-    std::cout << buf3->core_id << std::endl;
-    std::cout << buf3->num_cores << std::endl;
     used_up_shootdown = false;
 
     for (int i = 0;i < num_cores; i++) entry_count[i] = 1;
@@ -219,7 +216,6 @@ Request* TraceProcessor::generateRequest()
     uint64_t va, tid;
     bool is_large, is_write;
     bool is_multicore = strcasecmp(fmt, "-m") == 0;
-    uint64_t tid_offset = 0;
 
     uint64_t shootdown_ts = buf3->ts;
     int shootdown_core_id = buf3->core_id;
@@ -247,6 +243,7 @@ Request* TraceProcessor::generateRequest()
             {
 
                 std::cout << "Shootdown timestamp = " << shootdown_ts << std::endl;
+
                 //Randomly choose either large page or small page
                 Request *req = nullptr;
                 int num_tries = 0;
@@ -257,10 +254,10 @@ Request* TraceProcessor::generateRequest()
                     auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
                     bool shootdown_is_large = (randVal < 0.5) ? false : true;
 
-                    if((num_tries % 2 == 0) && (num_tries > 0) && (shootdown_num_cores > 1))
+                    if((num_tries % 2 == 0) && (num_tries > 0))
                     {
-                        std::cout << "[DECREMENT_SHOOTDOWN_CORES] Could not find adequate address, decreasing number of cores affected\n";
-                        shootdown_num_cores--;
+                        std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
+                        shootdown_num_cores = (shootdown_num_cores + 1) % NUM_CORES;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
@@ -277,7 +274,9 @@ Request* TraceProcessor::generateRequest()
                     num_tries += 1;
                 }
 
-                std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec << "\n";
+                last_ts[idx]++;
+
+                std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
 
                 return req;
             }
@@ -326,18 +325,19 @@ Request* TraceProcessor::generateRequest()
                     auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
                     bool shootdown_is_large = (randVal < 0.5) ? false : true;
 
-                    if((num_tries % 2 == 0) && (num_tries > 0) && (shootdown_num_cores > 1))
+                    if((num_tries % 2 == 0) && (num_tries > 0))
                     {
-                        std::cout << "[DECREMENT_SHOOTDOWN_CORES] Could not find adequate address, decreasing number of cores affected\n";
-                        shootdown_num_cores--;
+                        std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
+                        shootdown_num_cores = (shootdown_num_cores + 1) % NUM_CORES;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
-                        //if(it->second.size() == (shootdown_num_cores - 1))
-                        if(it->second.size() == (shootdown_num_cores))
+                        //TODO: YMARATHE: Correct this, only for the purposes of testing
+                        if(it->second.size() == (shootdown_num_cores - 1))
                         {
                             shootdown_va = it->first.m_addr;
+                            uint64_t tid = (idx + tid_offset) % NUM_CORES;
                             req = new Request(shootdown_va, TRANSLATION_WRITE, tid, shootdown_is_large, shootdown_core_id);
                             used_up_shootdown = true;
                         }
@@ -346,7 +346,9 @@ Request* TraceProcessor::generateRequest()
                     num_tries += 1;
                 }
 
-                std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec << "\n";
+                last_ts[idx]++;
+
+                std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
 
                 return req;
             }
@@ -441,24 +443,36 @@ void TraceProcessor::remove_from_presence_map(uint64_t addr, uint64_t tid, bool 
 
     if(is_large)
     {
-        assert(presence_map_large_page.find(rdesc) != presence_map_large_page.end());
-        auto it = presence_map_large_page[rdesc].find(core_id);
-        assert(it != presence_map_large_page[rdesc].end());
-        presence_map_large_page[rdesc].erase(it);
-        if(presence_map_large_page[rdesc].size() == 0)
+        //assert(presence_map_large_page.find(rdesc) != presence_map_large_page.end());
+        if(presence_map_large_page.find(rdesc) != presence_map_large_page.end())
         {
-            presence_map_large_page.erase(rdesc);
+            auto it = presence_map_large_page[rdesc].find(core_id);
+            //assert(it != presence_map_large_page[rdesc].end());
+            if(it != presence_map_large_page[rdesc].end())
+            {
+                presence_map_large_page[rdesc].erase(it);
+                if(presence_map_large_page[rdesc].size() == 0)
+                {
+                    presence_map_large_page.erase(rdesc);
+                }
+            }
         }
     }
     else
     {
-        assert(presence_map_small_page.find(rdesc) != presence_map_small_page.end());
-        auto it = presence_map_small_page[rdesc].find(core_id);
-        assert(it != presence_map_small_page[rdesc].end());
-        presence_map_small_page[rdesc].erase(it);
-        if(presence_map_small_page[rdesc].size() == 0)
+        //assert(presence_map_small_page.find(rdesc) != presence_map_small_page.end());
+        if(presence_map_small_page.find(rdesc) != presence_map_small_page.end())
         {
-            presence_map_small_page.erase(rdesc);
+            auto it = presence_map_small_page[rdesc].find(core_id);
+            //assert(it != presence_map_small_page[rdesc].end());
+            if(it != presence_map_small_page[rdesc].end())
+            {
+                presence_map_small_page[rdesc].erase(it);
+                if(presence_map_small_page[rdesc].size() == 0)
+                {
+                    presence_map_small_page.erase(rdesc);
+                }
+            }
         }
     }
 }

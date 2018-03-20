@@ -83,6 +83,7 @@ public:
     uint64_t   l3_small_tlb_size = 1024*1024;
     uint64_t   l3_large_tlb_size = 256*1024;
     uint64_t context_switch_count;
+    uint64_t tid_offset = 0;
     
     std::unordered_map<RequestDesc, std::set<uint64_t>, RequestDescHasher> presence_map_small_page;
     std::unordered_map<RequestDesc, std::set<uint64_t>, RequestDescHasher> presence_map_large_page;
@@ -108,6 +109,8 @@ public:
 
         context_switch_count = (5000000 - 3000000) * (rand()/(double) RAND_MAX);
         std::cout << "Context switch count = " << context_switch_count << "\n";
+
+        empty_file_shootdown = false;
     }
 
     ~TraceProcessor()

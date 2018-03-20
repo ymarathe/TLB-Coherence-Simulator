@@ -80,7 +80,7 @@ public:
 
     void clflush(const uint64_t addr, uint64_t tid, bool is_translation);
 
-    void pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation);
+    void tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large);
     
 };
 

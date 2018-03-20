@@ -283,6 +283,9 @@ void Core::tick()
             std::cout << "Encountered TLB shootdown request on Core " << m_core_id << "\n";
             std::cout << std::hex << (*req) << std::dec;
 
+            //Local TLB flush
+            tlb_invalidate(req->m_addr, req->m_tid, req->m_is_large);
+
             //We generate a store to the POM-TLB address here
             req->m_addr = getL3TLBAddr(req->m_addr, req->m_tid, req->m_is_large, false);
 
@@ -333,7 +336,7 @@ bool Core::must_add_trace()
     return (traceVec.size() < 1000000);
 }
 
-void Core::pom_tlb_invalidate(uint64_t addr, uint64_t tid, bool is_translation)
+void Core::tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large)
 {
-    m_tlb_hier->pom_tlb_invalidate(addr, tid, is_translation);
+    m_tlb_hier->tlb_invalidate(addr, tid, is_large);
 }

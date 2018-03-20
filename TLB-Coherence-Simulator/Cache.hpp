@@ -156,5 +156,6 @@ public:
     unsigned int get_core_id();
     bool is_found_by_cotag(uint64_t pom_tlb_addr, uint64_t tid, unsigned int &index, unsigned int &hit_pos);
     void add_traceprocessor(TraceProcessor *tp);
+    TraceProcessor* get_traceprocessor();
 };
 #endif /* Cache_hpp */
