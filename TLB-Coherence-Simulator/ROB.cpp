@@ -24,7 +24,10 @@ bool ROB::issue(bool is_memory_access, Request *r, uint64_t clk)
     if(is_memory_access)
     {
         kind act_txn_kind = r->m_type;
-        r->update_request_type_from_core(TRANSLATION_READ);
+        if(act_txn_kind != TRANSLATION_WRITE)
+        {
+            r->update_request_type_from_core(TRANSLATION_READ);
+        }
         is_request_ready.insert(std::pair<Request, bool>(*r, false));
         r->update_request_type_from_core(act_txn_kind);
     }
@@ -91,10 +94,32 @@ bool ROB::can_issue()
 void ROB::mem_mark_translation_done(Request &r)
 {
     auto entries = is_request_ready.equal_range(r);
+
     for(auto it = entries.first; it != entries.second; it++)
     {
         it->second = true;
     }
+
+    //If there is a translation write/read to the same address, requests get merged in the data hierarchy.
+    //Therefore there might be a response only for a TRANSLATION_WRITE
+
+    bool check_read = false;
+
+    if (r.m_type == TRANSLATION_WRITE)
+    {
+        check_read = true;
+        r.m_type = TRANSLATION_READ;
+    }
+
+    entries = is_request_ready.equal_range(r);
+
+    for(auto it = entries.first; it != entries.second; it++)
+    {
+        it->second = true;
+    }
+
+    if(check_read)
+        r.m_type = TRANSLATION_WRITE;
 }
 
 bool ROB::is_empty()

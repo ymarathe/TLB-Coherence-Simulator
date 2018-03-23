@@ -198,7 +198,8 @@ void Core::tick()
             }
 
             stall = false;
-            std::cout << "Number of stall cycles = " << num_stall_cycles << "\n";
+            std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
+            std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
         }
     }
     
@@ -208,7 +209,7 @@ void Core::tick()
     {
         Request req = it->first;
         bool can_issue = it->second;
-        
+
         if(req.m_is_read && req.m_is_translation)
         {
             req.update_request_type_from_core(TRANSLATION_READ);
@@ -240,7 +241,7 @@ void Core::tick()
                 it++;
             }
         }
-        else if(req.m_type == TRANSLATION_WRITE)
+        else if(can_issue && (req.m_type == TRANSLATION_WRITE))
         {
             std::cout << "Issuing translation coherence write to data hierarchy\n";
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
@@ -278,7 +279,7 @@ void Core::tick()
                 traceVec.pop_front();
             }
         }
-        else if(req->m_type == TRANSLATION_WRITE)
+        else if(req->m_is_memory_acc && (req->m_type == TRANSLATION_WRITE))
         {
             std::cout << "Encountered TLB shootdown request on Core " << m_core_id << "\n";
             std::cout << std::hex << (*req) << std::dec;
@@ -296,12 +297,14 @@ void Core::tick()
             m_rob->issue(req->m_is_memory_acc, req, m_clk);
             traceVec.pop_front();
 
+            Request *front = traceVec.front();
+            assert(front->m_type != TRANSLATION_WRITE); 
+
             //Mark as translation done in is_request_ready queue
             //Ready for dispatch to data hierarchy
             m_rob->mem_mark_translation_done(*req);
 
             m_rob->peek(tr_coh_issue_ptr);
-
         }
         else
         {

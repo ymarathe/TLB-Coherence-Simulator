@@ -274,8 +274,6 @@ Request* TraceProcessor::generateRequest()
                     num_tries += 1;
                 }
 
-                last_ts[idx]++;
-
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
 
                 return req;
@@ -333,8 +331,9 @@ Request* TraceProcessor::generateRequest()
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
-                        //TODO: YMARATHE: Correct this, only for the purposes of testing
-                        if(it->second.size() == (shootdown_num_cores - 1))
+                        //If the translation entry is present in the initiator core
+                        //And if the number of cores having the translation entries = Number of victim cores
+                        if(it->second.size() == (shootdown_num_cores - 1) && (it->second.find(shootdown_core_id) != it->second.end()))
                         {
                             shootdown_va = it->first.m_addr;
                             uint64_t tid = (idx + tid_offset) % NUM_CORES;
@@ -345,8 +344,6 @@ Request* TraceProcessor::generateRequest()
 
                     num_tries += 1;
                 }
-
-                last_ts[idx]++;
 
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
 
@@ -392,7 +389,7 @@ Request* TraceProcessor::generateRequest()
 uint64_t TraceProcessor::switch_threads()
 {
     //When context switch count is 0, reinitialize tid offset
-    context_switch_count = (5000000 - 3000000) * (rand()/(double) RAND_MAX);
+    context_switch_count = (500000000 - 300000000) * (rand()/(double) RAND_MAX);
     uint64_t tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
     std::cout << "Switching threads\n";
 

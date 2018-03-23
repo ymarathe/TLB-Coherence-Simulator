@@ -178,8 +178,31 @@ int main(int argc, char * argv[])
 	   done = done & cores[i]->is_done(); 
 	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
 	   {
-		   std::cout << "Core " << i << " timed out " << std::endl;
-		   std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
+		   //std::cout << "Core " << i << " timed out " << std::endl;
+		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
+           for(int j = 0; j < NUM_CORES; j++)
+           {
+               if(cores[j]->traceVec.size())
+               {
+                   std::cout << "Core " << j << " has unserviced requests = " << cores[j]->traceVec.size() << "\n";
+               }
+
+               if(!cores[j]->is_done())
+               {
+                   std::cout << "Core " << j << " NOT done\n";
+		           std::cout << "Blocking request = " ; cores[j]->m_rob->peek_commit_ptr();
+               }
+
+               if(cores[j]->stall)
+               {
+                   std::cout << "Core " << j << " STALLED\n";
+               }
+
+               if(!cores[j]->m_rob->can_issue())
+               {
+                   std::cout << "Core " << j << " can't issue\n";
+               }
+           }
 		   timeout = true;
 	   }
  	}

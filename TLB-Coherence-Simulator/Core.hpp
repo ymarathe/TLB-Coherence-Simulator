@@ -62,16 +62,15 @@ private:
     unsigned int m_core_id;
     
     std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
-    
-    std::deque<Request*> traceVec;
 
-    bool stall;
 
     unsigned int tr_coh_issue_ptr;
 
     uint64_t num_stall_cycles = 0;
     
 public:
+    bool stall;
+    std::deque<Request*> traceVec;
     std::shared_ptr<ROB> m_rob;
     uint64_t m_clk;
     Core(std::shared_ptr<CacheSys> cache_hier, std::shared_ptr<CacheSys> tlb_hier, std::shared_ptr<ROB> rob, uint64_t l3_small_tlb_base = 0x0, uint64_t l3_small_tlb_size = 1024 * 1024) :

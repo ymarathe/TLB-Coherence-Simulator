@@ -199,6 +199,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     uint64_t tid = req.m_tid;
     bool is_large = req.m_is_large;
     //unsigned int core_id = req.m_core_id;
+    //
     
     if(!m_is_callback_initialized)
     {
