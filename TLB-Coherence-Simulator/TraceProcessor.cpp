@@ -235,7 +235,7 @@ Request* TraceProcessor::generateRequest()
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, idx, is_large, idx);
                 used_up[idx] = true;
 
-                add_to_presence_map(*req);
+                //add_to_presence_map(*req);
 
                 return req;
             }
@@ -250,33 +250,55 @@ Request* TraceProcessor::generateRequest()
 
                 while(req == nullptr)
                 {
-                    double randVal = rand();
-                    auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
-                    bool shootdown_is_large = (randVal < 0.5) ? false : true;
+                    //double randVal = rand();
+                    //auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
+                    //bool shootdown_is_large = (randVal < 0.5) ? false : true;
+                    auto chosen_map = (num_tries % 2 == 0) ? presence_map_small_page : presence_map_large_page;
+                    bool shootdown_is_large = (num_tries % 2 == 0) ? false : true;
 
                     if((num_tries % 2 == 0) && (num_tries > 0))
                     {
                         std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
-                        shootdown_num_cores = (shootdown_num_cores + 1) % NUM_CORES;
+                        shootdown_num_cores = (shootdown_num_cores != (NUM_CORES - 1)) ? (shootdown_num_cores + 1) % NUM_CORES : 
+                                                   (num_tries == (NUM_CORES - 1)) ? 1 : 2;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
                         //if(it->second.size() == (shootdown_num_cores - 1))
-                        if(it->second.size() == (shootdown_num_cores))
+                        if(it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end()))
                         {
                             shootdown_va = it->first.m_addr;
                             req = new Request(shootdown_va, TRANSLATION_WRITE, idx, shootdown_is_large, shootdown_core_id);
                             used_up_shootdown = true;
+                            goto exit_loop_mc;
                         }
                     }
 
                     num_tries += 1;
                 }
-
-                last_ts[idx]++;
-
+                exit_loop_mc:
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
+                std::cout << "Num cores affected = " << shootdown_num_cores << "\n";
+                
+                RequestDesc rdesc(req->m_addr, req->m_tid, req->m_is_large);
+                std::cout << rdesc << ": ";
+                if(req->m_is_large)
+                {
+                    for(auto it = presence_map_large_page[rdesc].begin(); it != presence_map_large_page[rdesc].end(); it++)
+                    {
+                        std::cout << *it << ", ";
+                    }
+                    std::cout << "\n";
+                }
+                else
+                {
+                    for(auto it = presence_map_small_page[rdesc].begin(); it != presence_map_small_page[rdesc].end(); it++)
+                    {
+                        std::cout << *it << ", ";
+                    }
+                    std::cout << "\n";
+                }
 
                 return req;
             }
@@ -303,7 +325,7 @@ Request* TraceProcessor::generateRequest()
                 Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, tid, is_large, idx);
                 used_up[idx] = true;
 
-                add_to_presence_map(*req);
+                //add_to_presence_map(*req);
 
                 //For every instruction added, decrement context_switch_count
                 context_switch_count--;
@@ -321,34 +343,57 @@ Request* TraceProcessor::generateRequest()
 
                 while(req == nullptr)
                 {
-                    double randVal = rand();
-                    auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
-                    bool shootdown_is_large = (randVal < 0.5) ? false : true;
+                    //double randVal = rand();
+                    //auto chosen_map = (randVal < 0.5) ? presence_map_small_page : presence_map_large_page;
+                    //bool shootdown_is_large = (randVal < 0.5) ? false : true;
+                    auto chosen_map = (num_tries % 2 == 0) ? presence_map_small_page : presence_map_large_page;
+                    bool shootdown_is_large = (num_tries % 2 == 0) ? false : true;
 
                     if((num_tries % 2 == 0) && (num_tries > 0))
                     {
                         std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
-                        shootdown_num_cores = (shootdown_num_cores + 1) % NUM_CORES;
+                        shootdown_num_cores = (shootdown_num_cores != (NUM_CORES - 1)) ? (shootdown_num_cores + 1) % NUM_CORES : 
+                                                   (num_tries == (NUM_CORES - 1)) ? 1 : 2;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
-                        //TODO: YMARATHE: Correct this, only for the purposes of testing
-                        if(it->second.size() == (shootdown_num_cores - 1))
+                        //If the translation entry is present in the initiator core
+                        //And if the number of cores having the translation entries = Number of victim cores
+                        if(it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end()))
                         {
                             shootdown_va = it->first.m_addr;
                             uint64_t tid = (idx + tid_offset) % NUM_CORES;
                             req = new Request(shootdown_va, TRANSLATION_WRITE, tid, shootdown_is_large, shootdown_core_id);
                             used_up_shootdown = true;
+                            goto exit_loop_mt;
                         }
                     }
 
                     num_tries += 1;
                 }
-
-                last_ts[idx]++;
-
+                exit_loop_mt:
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
+                std::cout << "Num cores affected = " << shootdown_num_cores << "\n";
+
+                RequestDesc rdesc(req->m_addr, req->m_tid, req->m_is_large);
+                std::cout << rdesc << ": ";
+                if(req->m_is_large)
+                {
+                    for(auto it = presence_map_large_page[rdesc].begin(); it != presence_map_large_page[rdesc].end(); it++)
+                    {
+                        std::cout << *it << ", ";
+                    }
+                    std::cout << "\n";
+                }
+                else
+                {
+                    for(auto it = presence_map_small_page[rdesc].begin(); it != presence_map_small_page[rdesc].end(); it++)
+                    {
+                        std::cout << *it << ", ";
+                    }
+                    std::cout << "\n";
+                }
 
                 return req;
             }
@@ -392,7 +437,7 @@ Request* TraceProcessor::generateRequest()
 uint64_t TraceProcessor::switch_threads()
 {
     //When context switch count is 0, reinitialize tid offset
-    context_switch_count = (5000000 - 3000000) * (rand()/(double) RAND_MAX);
+    context_switch_count = (500000000 - 300000000) * (rand()/(double) RAND_MAX);
     uint64_t tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
     std::cout << "Switching threads\n";
 
@@ -418,7 +463,8 @@ void TraceProcessor::add_to_presence_map(Request &r)
         }
         else
         {
-            presence_map_large_page[rdesc] = std::set<uint64_t>();
+            //presence_map_large_page[rdesc] = std::set<uint64_t>();
+            presence_map_large_page.insert(std::pair<RequestDesc, std::set<uint64_t>>(rdesc, std::set<uint64_t>()));
             presence_map_large_page[rdesc].insert(r.m_core_id);
         }
     }
@@ -431,7 +477,8 @@ void TraceProcessor::add_to_presence_map(Request &r)
         }
         else
         {
-            presence_map_small_page[rdesc] = std::set<uint64_t>();
+            //presence_map_small_page[rdesc] = std::set<uint64_t>();
+            presence_map_small_page.insert(std::pair<RequestDesc, std::set<uint64_t>>(rdesc, std::set<uint64_t>()));
             presence_map_small_page[rdesc].insert(r.m_core_id);
         }
     }

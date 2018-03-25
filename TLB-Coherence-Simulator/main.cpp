@@ -81,7 +81,7 @@ int main(int argc, char * argv[])
         l1_tlb.push_back(std::make_shared<Cache>(Cache(16, 4, 4096, 1, TRANSLATION_ONLY)));
         l1_tlb.push_back(std::make_shared<Cache>(Cache(8, 4, 2 * 1024 * 1024, 1, TRANSLATION_ONLY, true)));
         l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 4096, 14, TRANSLATION_ONLY)));
-        l2_tlb.push_back(std::make_shared<Cache>(Cache(64, 16, 2 * 1024 * 1024, 14, TRANSLATION_ONLY, true)));
+        l2_tlb.push_back(std::make_shared<Cache>(Cache(32, 16, 2 * 1024 * 1024, 14, TRANSLATION_ONLY, true)));
 
         l1_tlb[2 * i]->add_traceprocessor(&tp);
         l1_tlb[2 * i + 1]->add_traceprocessor(&tp);
@@ -178,8 +178,31 @@ int main(int argc, char * argv[])
 	   done = done & cores[i]->is_done(); 
 	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
 	   {
-		   std::cout << "Core " << i << " timed out " << std::endl;
-		   std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
+		   //std::cout << "Core " << i << " timed out " << std::endl;
+		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
+           for(int j = 0; j < NUM_CORES; j++)
+           {
+               if(cores[j]->traceVec.size())
+               {
+                   std::cout << "Core " << j << " has unserviced requests = " << cores[j]->traceVec.size() << "\n";
+               }
+
+               if(!cores[j]->is_done())
+               {
+                   std::cout << "Core " << j << " NOT done\n";
+		           std::cout << "Blocking request = " ; cores[j]->m_rob->peek_commit_ptr();
+               }
+
+               if(cores[j]->stall)
+               {
+                   std::cout << "Core " << j << " STALLED\n";
+               }
+
+               if(!cores[j]->m_rob->can_issue())
+               {
+                   std::cout << "Core " << j << " can't issue\n";
+               }
+           }
 		   timeout = true;
 	   }
  	}

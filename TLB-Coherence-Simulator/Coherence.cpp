@@ -23,6 +23,12 @@ void CoherenceProtocol::set_level(unsigned int cache_level)
     m_cache_level = cache_level;
 }
 
+unsigned int CoherenceProtocol::get_level()
+{
+    return m_cache_level;
+}
+
+
 CoherenceAction MOESIProtocol::setNextCoherenceState(kind txn_kind, CoherenceState propagate_coh_state)
 {
     //TODO: Need to handle writebacks here as well

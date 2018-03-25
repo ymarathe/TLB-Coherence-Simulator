@@ -109,7 +109,8 @@ std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t tid, bool 
             {
                 //propagate_to_small_tlb = 0, go with large
                 //propagate_to_small_tlb = 1, go with small
-                bool propagate_to_small_tlb = ((val.m_addr & 0x200000) != 0);
+                //bool propagate_to_small_tlb = ((val.m_addr & 0x200000) != 0);
+                bool propagate_to_small_tlb = !val.m_is_large;
                 propagate_access = (propagate_to_small_tlb == is_higher_cache_small_tlb);
                 if(propagate_access)
                 {
@@ -159,7 +160,8 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
     //Not penultimate, return lower TLB (small/large)
     if(!is_penultimate_tlb && is_translation)
     {
-        return (addr & 0x200000) ? m_tlb_hier->m_caches[level - (level % 2) + 2] : m_tlb_hier->m_caches[level - (level % 2) + 3];
+        //return (addr & 0x200000) ? m_tlb_hier->m_caches[level - (level % 2) + 2] : m_tlb_hier->m_caches[level - (level % 2) + 3];
+        return (is_large) ? m_tlb_hier->m_caches[level - (level % 2) + 3] : m_tlb_hier->m_caches[level - (level % 2) + 2];
     }
     
     //Penultimate TLB. Return penultimate cache
@@ -198,7 +200,8 @@ void Core::tick()
             }
 
             stall = false;
-            std::cout << "Number of stall cycles = " << num_stall_cycles << "\n";
+            std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
+            std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
         }
     }
     
@@ -208,7 +211,7 @@ void Core::tick()
     {
         Request req = it->first;
         bool can_issue = it->second;
-        
+
         if(req.m_is_read && req.m_is_translation)
         {
             req.update_request_type_from_core(TRANSLATION_READ);
@@ -240,7 +243,7 @@ void Core::tick()
                 it++;
             }
         }
-        else if(req.m_type == TRANSLATION_WRITE)
+        else if(can_issue && (req.m_type == TRANSLATION_WRITE))
         {
             std::cout << "Issuing translation coherence write to data hierarchy\n";
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
@@ -278,7 +281,7 @@ void Core::tick()
                 traceVec.pop_front();
             }
         }
-        else if(req->m_type == TRANSLATION_WRITE)
+        else if(req->m_is_memory_acc && (req->m_type == TRANSLATION_WRITE))
         {
             std::cout << "Encountered TLB shootdown request on Core " << m_core_id << "\n";
             std::cout << std::hex << (*req) << std::dec;
@@ -296,12 +299,14 @@ void Core::tick()
             m_rob->issue(req->m_is_memory_acc, req, m_clk);
             traceVec.pop_front();
 
+            Request *front = traceVec.front();
+            assert(front->m_type != TRANSLATION_WRITE); 
+
             //Mark as translation done in is_request_ready queue
             //Ready for dispatch to data hierarchy
             m_rob->mem_mark_translation_done(*req);
 
             m_rob->peek(tr_coh_issue_ptr);
-
         }
         else
         {

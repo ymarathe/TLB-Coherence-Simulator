@@ -26,6 +26,7 @@ public:
     CoherenceState getCoherenceState();
     void forceCoherenceState(CoherenceState coh_state);
     void set_level(unsigned int cache_level);
+    unsigned int get_level();
     
     friend std::ostream& operator << (std::ostream& out, CoherenceProtocol &c)
     {

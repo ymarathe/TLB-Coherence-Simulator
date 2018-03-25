@@ -133,6 +133,10 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             //Writeback to memory
         }
     }
+    else if(!line.dirty)
+    {
+        line.m_coherence_prot->forceCoherenceState(INVALID);
+    }
     else
     {
         if(lower_cache != nullptr && m_inclusive)
@@ -182,7 +186,7 @@ bool Cache::lookupCache(Request &req)
 
     bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
 
-    if(is_hit(set, tag, is_translation, tid, hit_pos))
+    if(is_found(set, tag, is_translation, tid, hit_pos))
     {
         return true;
     }
@@ -199,7 +203,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     uint64_t tid = req.m_tid;
     bool is_large = req.m_is_large;
     //unsigned int core_id = req.m_core_id;
-    
+    //
     if(!m_is_callback_initialized)
     {
         initialize_callback();
@@ -387,6 +391,11 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
 	    assert(it != m_mshr_entries.end());
     	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
    	    num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+
+        if(m_cache_type == TRANSLATION_ONLY && ((m_cache_level == 1) || (m_cache_level == 2)))
+        {
+            m_tp_ptr->add_to_presence_map(req);
+        }
     }
     else
     {
@@ -446,7 +455,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     req.m_is_large = coh_is_large;
     
     handle_coherence_action(coh_action, req, curr_latency, true);
-    
+
     return REQUEST_MISS;
 }
 
@@ -469,6 +478,7 @@ void Cache::set_level(unsigned int level)
         for(int j = 0; j < m_associativity; j++)
         {
             set[j].m_coherence_prot->set_level(level);
+            assert(set[j].m_coherence_prot->get_level() == m_cache_level);
         }
     }}
 
@@ -546,8 +556,8 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
     uint64_t tid = r.m_tid;
     bool is_large = r.m_is_large;
     bool is_translation = (r.m_type == TRANSLATION_READ) || (r.m_type == TRANSLATION_WRITE);
-    
     bool needs_state_correction = false;
+
     if(coh_action == MEMORY_TRANSLATION_WRITEBACK || coh_action == MEMORY_DATA_WRITEBACK)
     {
         //Evict to lower cache if we need to do a writeback.
@@ -611,6 +621,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
         {
             assert(m_cache_sys->get_is_translation_hier());
             unsigned int index, hit_pos;
+            
             if(is_found_by_cotag(addr, tid, index, hit_pos))
             {
                 CacheLine &line = m_tagStore[index][hit_pos];
@@ -618,8 +629,8 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
                 if(coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
                 {
-                    std::cout << "[SHOOTDOWN] Invalidate line via co-tag on core " << m_core_id << "\n";
-                    std::cout << std::hex << r << std::dec;
+                    std::cout << "[SHOOTDOWN] Invalidate line via co-tag on core " << m_core_id << ", level = " << m_cache_level << " : " <<  std::hex << r << std::dec;
+                    
                     line.valid = false;
                     assert(line.m_coherence_prot->getCoherenceState() == INVALID);
 

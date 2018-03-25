@@ -232,4 +232,10 @@ void CacheSys::tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large)
             tp->remove_from_presence_map(addr, tid, m_caches[i]->get_is_large_page_tlb(), m_core_id);
         }
     }
+
+    for(int i = start; i < m_caches.size(); i += 2)
+    {
+        Request req(addr, TRANSLATION_READ, tid, is_large, m_core_id); 
+        assert(!m_caches[i]->lookupCache(req));
+    }
 }
