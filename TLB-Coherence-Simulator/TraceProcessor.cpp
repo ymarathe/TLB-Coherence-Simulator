@@ -276,6 +276,16 @@ Request* TraceProcessor::generateRequest()
                     }
 
                     num_tries += 1;
+
+                    if(num_tries > NUM_CORES)
+                    {
+                        req = new Request();
+                        req->m_is_memory_acc = false;
+                        req->m_core_id = idx;
+                        last_ts[idx]++;
+                        used_up_shootdown = true;
+                        goto exit_loop_mc;
+                    }
                 }
                 exit_loop_mc:
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
@@ -371,6 +381,17 @@ Request* TraceProcessor::generateRequest()
                     }
 
                     num_tries += 1;
+
+                    if(num_tries > NUM_CORES)
+                    {
+                        req = new Request();
+                        req->m_is_memory_acc = false;
+                        req->m_core_id = idx;
+                        last_ts[idx]++;
+                        used_up_shootdown = true;
+                        goto exit_loop_mt;
+		    }
+
                 }
                 exit_loop_mt:
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
