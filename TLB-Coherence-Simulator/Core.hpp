@@ -66,22 +66,22 @@ private:
     
     std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
 
-
     unsigned int tr_coh_issue_ptr;
 
-    uint64_t num_stall_cycles = 0;
+    std::vector<std::shared_ptr<Core>> m_other_cores;
 
+public:
+    bool stall;
+    std::shared_ptr<ROB> m_rob;
+    std::deque<Request*> traceVec;
+    uint64_t m_clk;
+    uint64_t num_stall_cycles = 0;
     uint64_t tlb_shootdown_penalty;
     uint64_t tlb_shootdown_addr;
     uint64_t tlb_shootdown_tid;
     bool tlb_shootdown_is_large;
     uint64_t num_stall_cycles_per_shootdown = 0;
 
-public:
-    bool stall;
-    std::deque<Request*> traceVec;
-    std::shared_ptr<ROB> m_rob;
-    uint64_t m_clk;
     Core(std::shared_ptr<CacheSys> cache_hier, std::shared_ptr<CacheSys> tlb_hier, std::shared_ptr<ROB> rob, uint64_t l3_small_tlb_base = 0x0, uint64_t l3_small_tlb_size = 1024 * 1024) :
         m_cache_hier(cache_hier),
         m_tlb_hier(tlb_hier),
@@ -114,6 +114,8 @@ public:
     bool must_add_trace();
 
     void tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large);
+
+    void add_core(std::shared_ptr<Core> other_core);
 };
 
 #endif /* Core_hpp */

@@ -108,6 +108,18 @@ int main(int argc, char * argv[])
         
         ll_interface_complete = cores[i]->interfaceHier(ll_interface_complete);
     }
+
+    //Make cores aware of each other
+    for(int i = 0; i < NUM_CORES; i++)
+    {
+        for(int j = 0; j < NUM_CORES; j++)
+        {
+            if(i != j)
+            {
+                cores[i]->add_core(cores[j]);
+            }
+        }
+    }
     
     //Make cache hierarchies aware of each other
     for(int i = 0; i < NUM_CORES; i++)
@@ -160,7 +172,8 @@ int main(int argc, char * argv[])
 	done = true;
    	for(int i = 0; i < NUM_CORES; i++)
    	{
-	   cores[i]->tick();
+        if(!cores[i]->is_done())
+	        cores[i]->tick();
        
        if((num_traces_added < NUM_TOTAL_TRACES) && (cores[i]->must_add_trace()))
        {
@@ -229,6 +242,7 @@ int main(int argc, char * argv[])
         outFile << "Cycles = " << cores[i]->m_clk << "\n";
         outFile << "Instructions = " << (tp.last_ts[i] - tp.warmup_period) << "\n";
         outFile << "IPC = " << (double) (tp.last_ts[i] - tp.warmup_period)/(cores[i]->m_clk) << "\n";
+        outFile << "Stall cycles = " << cores[i]->num_stall_cycles << "\n";
 
         outFile << "--------Core " << i << " -------------" << "\n";
         outFile << "[L1 D$] data hits = " << l1_data_caches[i]->num_data_hits << "\n";

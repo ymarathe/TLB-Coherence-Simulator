@@ -188,20 +188,15 @@ void Core::tick()
 #ifdef BASELINE
         if(num_stall_cycles_per_shootdown == tlb_shootdown_penalty)
         {
-            bool is_translation = true;
-            m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
-
-            for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
+            //Invalidate from other cores
+            for(int i = 0; i < m_other_cores.size(); i++)
             {
-                Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
-                assert(!m_cache_hier->m_caches[i]->lookupCache(req));
+                m_other_cores[i]->tlb_invalidate(tlb_shootdown_addr, tlb_shootdown_tid, tlb_shootdown_is_large);
             }
 #else
         if(m_rob->m_window[tr_coh_issue_ptr].done)
         {
             //If translation coherence request is serviced, issue CLFLUSH
-            //uint64_t addr = m_rob->m_window[tr_coh_issue_ptr].req->m_addr;
-            //uint64_t tid = m_rob->m_window[tr_coh_issue_ptr].req->m_tid;
             bool is_translation = true;
             m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
 
@@ -258,6 +253,18 @@ void Core::tick()
         }
         else if(can_issue && (req.m_type == TRANSLATION_WRITE))
         {
+#ifdef BASELINE
+            it = m_rob->is_request_ready.erase(it);
+            m_rob->mem_mark_done(req);
+            stall = true;
+            tlb_shootdown_addr = req.m_addr;
+            tlb_shootdown_tid = req.m_tid;
+            tlb_shootdown_is_large = req.m_is_large;
+            tlb_shootdown_penalty = 70281;
+            num_stall_cycles_per_shootdown = 0;
+            std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
+            break;
+#else
             std::cout << "Issuing translation coherence write to data hierarchy\n";
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
             if(data_req_status != REQUEST_RETRY)
@@ -267,10 +274,6 @@ void Core::tick()
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
-#ifdef BASELINE
-                tlb_shootdown_penalty = 70281;
-                num_stall_cycles_per_shootdown = 0;
-#endif
                 std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
                 break;
             }
@@ -278,6 +281,7 @@ void Core::tick()
             {
                 it++;
             }
+#endif
         }
         else
         {
@@ -366,4 +370,9 @@ bool Core::must_add_trace()
 void Core::tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large)
 {
     m_tlb_hier->tlb_invalidate(addr, tid, is_large);
+}
+
+void Core::add_core(std::shared_ptr<Core> other_core)
+{
+    m_other_cores.push_back(other_core);
 }
