@@ -119,7 +119,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
         {
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
-            req.m_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(req.m_addr, req.m_tid, req.m_is_large, false) : req.m_addr;
+            req.m_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(req.m_addr, req.m_type, req.m_tid, req.m_is_large, false) : req.m_addr;
             RequestStatus val = lower_cache->lookupAndFillCache(req, 0, line.m_coherence_prot->getCoherenceState());
             line.m_coherence_prot->forceCoherenceState(INVALID);
             
@@ -164,10 +164,10 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
 
         if(!is_found)
         {
-            std::cout << "[EVICTION] Removing from presence map = " << std::hex << req << std::dec;
+            //std::cout << "[EVICTION] Removing from presence map = " << std::hex << req << std::dec;
             m_tp_ptr->remove_from_presence_map(evict_addr, line.tid, line.is_large, m_core_id);
         }
-        std::cout << "[EVICTION]: In level = " << m_cache_level << " and in hier = " << m_cache_sys->get_is_translation_hier() << "\n";
+        //std::cout << "[EVICTION]: In level = " << m_cache_level << " and in hier = " << m_cache_sys->get_is_translation_hier() << "\n";
     }
 }
 
@@ -214,7 +214,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     uint64_t tag = get_tag(addr);
     uint64_t index = get_index(addr);
     std::vector<CacheLine>& set = m_tagStore[index];
-    
+
     if(m_core_id == -1)
     {
         req.m_is_core_agnostic = true;
@@ -319,7 +319,10 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         line.tid = tid;
         line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
         //If cache type is TRANSLATION_ONLY, include co-tag
-        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : -1;
+        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, txn_kind, tid, is_large, false) : -1;
+
+        MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
+        m_wb_entries.insert(std::make_pair(req, mshr_entry));
 
         req.add_callback(m_callback);
         std::shared_ptr<Request> r = std::make_shared<Request>(req);
@@ -436,7 +439,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         line.tid = tid;
         line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
         //If cache type is TRANSLATION_ONLY, include co-tag
-        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : -1;
+        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, txn_kind, tid, is_large, false) : -1;
         MSHREntry *mshr_entry = new MSHREntry(txn_kind, &line);
         m_mshr_entries.insert(std::make_pair(req, mshr_entry));
 	    auto it = m_mshr_entries.find(req);
@@ -465,7 +468,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         {
             CacheType lower_cache_type = lower_cache->get_cache_type();
             bool is_tr_to_dat_boundary = (m_cache_type == TRANSLATION_ONLY) && (lower_cache_type == DATA_AND_TRANSLATION);
-            req.m_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, tid, is_large): addr;
+            req.m_addr = (is_tr_to_dat_boundary) ? m_core->getL3TLBAddr(addr, txn_kind, tid, is_large): addr;
             lower_cache->lookupAndFillCache(req, curr_latency + m_latency_cycles);
         }
     }
@@ -565,7 +568,6 @@ void Cache::release_lock(std::shared_ptr<Request> r)
     {
         //Handle corner case where a line is evicted when it is still in the 'lock' state
         //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
-	//
         if(get_tag(r->m_addr) == it->second->m_line->tag)
         {
             it->second->m_line->lock = false;
@@ -582,19 +584,43 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         //Ensure erasure in the MSHR
         assert(m_mshr_entries.find(*r) == m_mshr_entries.end());
     }
-    
+
+    it = m_wb_entries.find(*r);
+
+    if(it != m_wb_entries.end())
+    {
+        //Handle corner case where a line is evicted when it is still in the 'lock' state
+        //In this case, tag of the line would have changed, and hence we don't want to change the lock state.
+        if(get_tag(r->m_addr) == it->second->m_line->tag)
+        {
+            it->second->m_line->lock = false;
+        }
+
+        //If we are in the last level cache and mshr_entry has been made core agnostic, make the upstream request core agnostic.
+        if(it->second->m_is_core_agnostic && m_core_id == -1)
+            r->m_is_core_agnostic = true;
+
+        delete(it->second);
+
+        m_wb_entries.erase(it);
+
+        //Ensure erasure in the MSHR
+        assert(m_wb_entries.find(*r) == m_wb_entries.end());
+
+    }
+
     //We are in L1
     //if(m_cache_level == 1 && m_cache_type == DATA_ONLY && !r->is_translation_request())
     if(m_cache_level == 1 && m_cache_type == DATA_ONLY)
     {
         m_core->m_rob->mem_mark_done(*r);
     }
-    
+
     if(m_cache_level == 1 && m_cache_type == TRANSLATION_ONLY && r->is_translation_request())
     {
         m_core->m_rob->mem_mark_translation_done(*r);
     }
-    
+
     propagate_release_lock(r);
 }
 
@@ -638,7 +664,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 req->m_core_id = m_core_id;
 
                 //If TLBs are relaying coherence update, relay co-tag address
-                req->m_addr = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : req->m_addr;  
+                req->m_addr = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, r.m_type, tid, is_large, false) : req->m_addr;
 
                 //TODO: Apply optimization to relay coherence updates to TLBs only on translation requests here
                 m_cache_sys->m_other_cache_sys[i]->m_coh_act_list.insert(std::make_pair(req, coh_action));
@@ -834,7 +860,7 @@ void Cache::propagate_release_lock(std::shared_ptr<Request> r)
                     // If data to translation boundary, obtain reverse mapping
                     if(is_dat_to_tr_boundary)
                     {
-                        std::vector<uint64_t> access_addresses = m_core->retrieveAddr(r->m_addr, r->m_tid, r->m_is_large, is_higher_cache_small_tlb);
+                        std::vector<uint64_t> access_addresses = m_core->retrieveAddr(r->m_addr, r->m_type, r->m_tid, r->m_is_large, is_higher_cache_small_tlb);
                         for(int i = 0; i < access_addresses.size(); i++)
                         {
                             r->m_addr = (propagate_access) ? access_addresses[i] : r->m_addr;

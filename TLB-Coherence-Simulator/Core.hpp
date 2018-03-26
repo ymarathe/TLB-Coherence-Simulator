@@ -23,14 +23,15 @@ private:
     class AddrMapKey {
     public:
         uint64_t m_addr;
-	uint64_t m_tid;
+	    uint64_t m_tid;
+        kind m_type;
         bool m_is_large;
         
-        AddrMapKey(uint64_t addr, uint64_t tid, bool is_large) : m_addr(addr), m_tid(tid), m_is_large(is_large) {}
+        AddrMapKey(uint64_t addr, kind type, uint64_t tid, bool is_large) : m_addr(addr), m_type(type), m_tid(tid), m_is_large(is_large) {}
         
         friend std::ostream& operator << (std::ostream& out, AddrMapKey &a)
         {
-            out << "|" << a.m_addr << "|" << a.m_tid << "|" << a.m_is_large << "|" << std::endl;
+            out << "|" << a.m_addr << "|" << a.m_type << "|" << a.m_tid << "|" << a.m_is_large << "|" << std::endl;
             return out;
         }
     };
@@ -40,6 +41,8 @@ private:
         bool operator () (const AddrMapKey &a, const AddrMapKey &b) const
         {
             if(a.m_addr < b.m_addr)
+                return true;
+            if(a.m_type < b.m_type)
                 return true;
             if(a.m_tid < b.m_tid)
                 return true; 
@@ -90,9 +93,9 @@ public:
     
     void set_core_id(unsigned int core_id);
     
-    uint64_t getL3TLBAddr(uint64_t va, uint64_t pid, bool is_large, bool insert = true);
+    uint64_t getL3TLBAddr(uint64_t va, kind type, uint64_t pid, bool is_large, bool insert = true);
     
-    std::vector<uint64_t> retrieveAddr(uint64_t l3tlbaddr, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb);
+    std::vector<uint64_t> retrieveAddr(uint64_t l3tlbaddr, kind type, uint64_t pid, bool is_large, bool is_higher_cache_small_tlb);
     
     std::shared_ptr<Cache> get_lower_cache(uint64_t addr, bool is_translation, bool is_large, unsigned int cache_level, CacheType cache_type);
     

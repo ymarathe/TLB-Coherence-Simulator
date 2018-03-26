@@ -55,6 +55,8 @@ private:
     std::shared_ptr<Core> m_core;
     
     std::unordered_map<Request, MSHREntry*, RequestHasher> m_mshr_entries;
+
+    std::unordered_map<Request, MSHREntry*, RequestHasher> m_wb_entries;
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;

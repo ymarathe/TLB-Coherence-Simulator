@@ -213,7 +213,6 @@ int main(int argc, char * argv[])
  	}
    }
 
-#ifdef LONG_WARMUP
     for(int i = 0; i < NUM_CORES;i++)
     {
         //cores[i]->m_rob->printContents();
@@ -315,7 +314,6 @@ int main(int argc, char * argv[])
     std::cout << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
 
     std::cout << "----------------------------------------------------------------------\n";
-#endif
     
     /*for(auto it = tp.presence_map_small_page.begin(); it != tp.presence_map_small_page.end(); it++)
     {

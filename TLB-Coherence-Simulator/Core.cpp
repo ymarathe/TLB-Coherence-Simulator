@@ -53,7 +53,7 @@ bool Core::interfaceHier(bool ll_interface_complete)
     return ll_interface_complete;
 }
 
-uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large, bool insert)
+uint64_t Core::getL3TLBAddr(uint64_t va, kind type, uint64_t tid, bool is_large, bool insert)
 {
     // Convert virtual address to a TLB lookup address.
     // Use the is_large attribute to go to either the small L3 TLB or the large L3 TLB.
@@ -81,19 +81,19 @@ uint64_t Core::getL3TLBAddr(uint64_t va, uint64_t tid, bool is_large, bool inser
     {
         if(va2L3TLBAddr.find(l3tlbaddr) != va2L3TLBAddr.end())
         {
-            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
+            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, type, tid, is_large));
         }
         else
         {
             va2L3TLBAddr[l3tlbaddr] = {};
-            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, tid, is_large));
+            va2L3TLBAddr[l3tlbaddr].insert(AddrMapKey(va, type, tid, is_large));
         }
     }
     
     return l3tlbaddr; // each set holds 4 entries of 16B each.
 }
 
-std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t tid, bool is_large, bool is_higher_cache_small_tlb)
+std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, kind type, uint64_t tid, bool is_large, bool is_higher_cache_small_tlb)
 {
     auto iter = va2L3TLBAddr.find(l3tlbaddr);
     bool propagate_access = true;
@@ -105,7 +105,7 @@ std::vector<uint64_t> Core::retrieveAddr(uint64_t l3tlbaddr, uint64_t tid, bool 
         for(std::set<AddrMapKey>::iterator amk_iter = iter->second.begin(); amk_iter != iter->second.end();)
         {
             AddrMapKey val = *amk_iter;
-            if(is_large == val.m_is_large && tid == val.m_tid)
+            if(is_large == val.m_is_large && tid == val.m_tid && val.m_type == type)
             {
                 //propagate_to_small_tlb = 0, go with large
                 //propagate_to_small_tlb = 1, go with small
@@ -290,7 +290,7 @@ void Core::tick()
             tlb_invalidate(req->m_addr, req->m_tid, req->m_is_large);
 
             //We generate a store to the POM-TLB address here
-            req->m_addr = getL3TLBAddr(req->m_addr, req->m_tid, req->m_is_large, false);
+            req->m_addr = getL3TLBAddr(req->m_addr, req->m_type, req->m_tid, req->m_is_large, false);
 
             //Note the issue_ptr in the ROB
             tr_coh_issue_ptr = m_rob->m_issue_ptr;
