@@ -183,22 +183,35 @@ void Core::tick()
     if(stall)
     {
         num_stall_cycles++;
+        num_stall_cycles_per_shootdown++;
         //Till translation coherence is serviced, stall issue
-        if(m_rob->m_window[tr_coh_issue_ptr].done)
+#ifdef BASELINE
+        if(num_stall_cycles_per_shootdown == tlb_shootdown_penalty)
         {
-            //If translation coherence request is serviced, issue CLFLUSH
-            uint64_t addr = m_rob->m_window[tr_coh_issue_ptr].req->m_addr;
-            uint64_t tid = m_rob->m_window[tr_coh_issue_ptr].req->m_tid;
-            uint64_t is_translation = true;
-
-            m_cache_hier->clflush(addr, tid, is_translation);
+            bool is_translation = true;
+            m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
 
             for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
             {
-                Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
-                assert(!m_cache_hier->m_caches[i]->lookupCache(*r));
+                Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
+                assert(!m_cache_hier->m_caches[i]->lookupCache(req));
             }
+#else
+        if(m_rob->m_window[tr_coh_issue_ptr].done)
+        {
+            //If translation coherence request is serviced, issue CLFLUSH
+            //uint64_t addr = m_rob->m_window[tr_coh_issue_ptr].req->m_addr;
+            //uint64_t tid = m_rob->m_window[tr_coh_issue_ptr].req->m_tid;
+            bool is_translation = true;
+            m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
 
+            for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
+            {
+                //Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
+                Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
+                assert(!m_cache_hier->m_caches[i]->lookupCache(req));
+            }
+#endif
             stall = false;
             std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
             std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
@@ -251,6 +264,13 @@ void Core::tick()
             {
                 it = m_rob->is_request_ready.erase(it);
                 stall = true;
+                tlb_shootdown_addr = req.m_addr;
+                tlb_shootdown_tid = req.m_tid;
+                tlb_shootdown_is_large = req.m_is_large;
+#ifdef BASELINE
+                tlb_shootdown_penalty = 70281;
+                num_stall_cycles_per_shootdown = 0;
+#endif
                 std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
                 break;
             }

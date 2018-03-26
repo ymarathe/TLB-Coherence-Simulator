@@ -70,7 +70,13 @@ private:
     unsigned int tr_coh_issue_ptr;
 
     uint64_t num_stall_cycles = 0;
-    
+
+    uint64_t tlb_shootdown_penalty;
+    uint64_t tlb_shootdown_addr;
+    uint64_t tlb_shootdown_tid;
+    bool tlb_shootdown_is_large;
+    uint64_t num_stall_cycles_per_shootdown = 0;
+
 public:
     bool stall;
     std::deque<Request*> traceVec;

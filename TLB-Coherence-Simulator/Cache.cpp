@@ -34,7 +34,8 @@ bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool
 {
     auto it = std::find_if(set.begin(), set.end(), [tag, is_translation, tid, this](const CacheLine &l)
                            {
-                               return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid));
+                               //return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid));
+                               return (is_translation) ?  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid)) :  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation));
                            });
     
     hit_pos = static_cast<unsigned int>(it - set.begin());
@@ -227,9 +228,6 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
 
     bool is_translation = (txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ);
 
-    num_tr_accesses  += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-    num_data_accesses += (!is_translation && (txn_kind != DATA_WRITEBACK));
-
     if(is_hit(set, tag, is_translation, tid, hit_pos))
     {
         CacheLine &line = set[hit_pos];
@@ -275,8 +273,11 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         
         handle_coherence_action(coh_action, req, curr_latency, true);
         
-        num_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-        num_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_tr_hits += (is_translation);
+        num_data_hits += (!is_translation);
+
+        num_tr_accesses  += (is_translation);
+        num_data_accesses += (!is_translation);
 
         return REQUEST_HIT;
     }
@@ -398,11 +399,14 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
             mshr_iter->second->m_is_core_agnostic = true;
         }
 
-        num_mshr_tr_hits += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-        num_mshr_data_hits += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_mshr_tr_hits += (is_translation);
+        num_mshr_data_hits += (!is_translation);
 
-        num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-       num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+        num_tr_misses += (is_translation);
+        num_data_misses += (!is_translation);
+
+        num_tr_accesses  += (is_translation);
+        num_data_accesses += (!is_translation);
         
         if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
         {
@@ -445,8 +449,12 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
 	    auto it = m_mshr_entries.find(req);
 	    //Ensure insertion in the MSHR
 	    assert(it != m_mshr_entries.end());
-    	num_tr_misses += (is_translation && (txn_kind != TRANSLATION_WRITEBACK));
-   	    num_data_misses += (!is_translation && (txn_kind != DATA_WRITEBACK));
+
+        num_tr_misses += (is_translation);
+        num_data_misses += (!is_translation);
+
+        num_tr_accesses  += (is_translation);
+        num_data_accesses += (!is_translation);
 
         if(m_cache_type == TRANSLATION_ONLY && ((m_cache_level == 1) || (m_cache_level == 2)))
         {
