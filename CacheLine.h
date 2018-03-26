@@ -9,7 +9,6 @@
 #ifndef CacheLine_h
 #define CacheLine_h
 #include<iostream>
-//#include "utils.hpp"
 
 class CoherenceProtocol;
 
