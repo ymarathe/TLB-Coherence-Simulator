@@ -299,9 +299,6 @@ void Core::tick()
             m_rob->issue(req->m_is_memory_acc, req, m_clk);
             traceVec.pop_front();
 
-            Request *front = traceVec.front();
-            assert(front->m_type != TRANSLATION_WRITE); 
-
             //Mark as translation done in is_request_ready queue
             //Ready for dispatch to data hierarchy
             m_rob->mem_mark_translation_done(*req);
@@ -314,6 +311,11 @@ void Core::tick()
             traceVec.pop_front();
         }
     }
+
+    /*if((traceVec.size() % 10000 == 0) && traceVec.size() != 1000000)
+    {
+        std::cout << "Traces left to be processed = " << traceVec.size() << ", on core = " << m_core_id << "\n";
+    }*/
     
     m_clk++;
 }

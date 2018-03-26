@@ -298,6 +298,58 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     //Blocking for L1 TLB access.
     //unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : (m_cache_level != 3) ? 16 : INT_MAX;
     unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : INT_MAX;
+
+    if(txn_kind == TRANSLATION_WRITEBACK || txn_kind == DATA_WRITEBACK)
+    {
+        if(needs_eviction)
+        {
+            evict(index, line);
+        }
+
+        if(txn_kind != TRANSLATION_WRITEBACK && txn_kind != DATA_WRITEBACK)
+        {
+            m_repl->updateReplState(index, insert_pos);
+        }
+
+        line.valid = true;
+        line.lock = true;
+        line.tag = tag;
+        line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
+        line.is_large = is_large;
+        line.tid = tid;
+        line.dirty = (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || ((txn_kind == TRANSLATION_WRITEBACK) || (txn_kind == DATA_WRITEBACK));
+        //If cache type is TRANSLATION_ONLY, include co-tag
+        line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, tid, is_large, false) : -1;
+
+        req.add_callback(m_callback);
+        std::shared_ptr<Request> r = std::make_shared<Request>(req);
+
+        uint64_t deadline = m_core->m_clk + curr_latency;
+
+        //If element already exists in list, push deadline.
+        while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
+        {
+            deadline++;
+        }
+
+        m_cache_sys->m_hit_list.insert(std::make_pair(deadline, r));
+
+        //Coherence handling
+        CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
+
+        //If we need to do writeback, we need to do it for addr already in cache
+        //If we need to broadcast, we need to do it for addr in lookupAndFillCache call
+        req.m_addr = cur_addr;
+        req.m_tid = line.tid;
+        req.m_is_large = line.is_large;
+
+        handle_coherence_action(coh_action, req, curr_latency, true);
+
+        return REQUEST_MISS;
+    }
+
+    assert(txn_kind != TRANSLATION_WRITEBACK);
+    assert(txn_kind != DATA_WRITEBACK);
     
     //Only if line is valid, we consider it to be an MSHR hit.
     if(mshr_iter != m_mshr_entries.end() && line.valid)

@@ -15,7 +15,8 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_INSTRUCTIONS 50000000 
+#define NUM_TRACES_PER_CORE 10000000 
+#define NUM_TOTAL_TRACES NUM_TRACES_PER_CORE * NUM_CORES 
 #define NUM_INITIAL_FILL 100 
 
 int main(int argc, char * argv[])
@@ -141,6 +142,8 @@ int main(int argc, char * argv[])
     {
         Request *r = tp.generateRequest();
 
+        //std::cout << "Request = " << std::hex << (*r) << std::dec;
+
         if(r->m_core_id >=0 && r->m_core_id < NUM_CORES)
         {
                 cores[r->m_core_id]->add_trace(r);
@@ -158,9 +161,11 @@ int main(int argc, char * argv[])
    	{
 	   cores[i]->tick();
        
-       if((num_traces_added < NUM_INSTRUCTIONS) && (cores[i]->must_add_trace()))
+       if((num_traces_added < NUM_TOTAL_TRACES) && (cores[i]->must_add_trace()))
        {
            Request *r = tp.generateRequest();
+
+           //std::cout << "Request = " << std::hex << (*r) << std::dec;
 
            if(r->m_core_id >= 0 && r->m_core_id < NUM_CORES)
            {
@@ -176,7 +181,7 @@ int main(int argc, char * argv[])
        }
 
 	   done = done & cores[i]->is_done(); 
-	   if(cores[i]->m_clk >= NUM_INSTRUCTIONS * 10)
+	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 3)
 	   {
 		   //std::cout << "Core " << i << " timed out " << std::endl;
 		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
@@ -208,6 +213,7 @@ int main(int argc, char * argv[])
  	}
    }
 
+#ifdef LONG_WARMUP
     for(int i = 0; i < NUM_CORES;i++)
     {
         //cores[i]->m_rob->printContents();
@@ -309,8 +315,9 @@ int main(int argc, char * argv[])
     std::cout << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/(tp.last_ts[0] - tp.warmup_period) << std::endl; 
 
     std::cout << "----------------------------------------------------------------------\n";
-
-    for(auto it = tp.presence_map_small_page.begin(); it != tp.presence_map_small_page.end(); it++)
+#endif
+    
+    /*for(auto it = tp.presence_map_small_page.begin(); it != tp.presence_map_small_page.end(); it++)
     {
         const RequestDesc &r = it->first;
         std::cout << r << std::dec << ": ";
@@ -336,5 +343,5 @@ int main(int argc, char * argv[])
         }
 
         std::cout << "\n";
-    }
+    }*/
 }

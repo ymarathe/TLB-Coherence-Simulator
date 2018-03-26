@@ -62,7 +62,7 @@ public:
     
     friend std::ostream& operator << (std::ostream &out, const Request &r)
     {
-        out << "Addr: " << r.m_addr << ", kind: " << r.m_type <<  ", tid: " << r.m_tid << ", is_large: " << r.m_is_large << ", core: " << r.m_core_id << ", is_agnostic:" << r.m_is_core_agnostic << std::endl;
+        out << "is_memory_acc : " << r.m_is_memory_acc << ", Addr: " << r.m_addr << ", kind: " << r.m_type <<  ", tid: " << r.m_tid << ", is_large: " << r.m_is_large << ", core: " << r.m_core_id << ", is_agnostic:" << r.m_is_core_agnostic << std::endl;
         return out;
     }
     
