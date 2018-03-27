@@ -81,6 +81,7 @@ public:
     uint64_t tlb_shootdown_tid;
     bool tlb_shootdown_is_large;
     uint64_t num_stall_cycles_per_shootdown = 0;
+    uint64_t num_shootdown = 0;
 
     Core(std::shared_ptr<CacheSys> cache_hier, std::shared_ptr<CacheSys> tlb_hier, std::shared_ptr<ROB> rob, uint64_t l3_small_tlb_base = 0x0, uint64_t l3_small_tlb_size = 1024 * 1024) :
         m_cache_hier(cache_hier),

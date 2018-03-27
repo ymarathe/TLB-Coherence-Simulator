@@ -16,7 +16,7 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_TRACES_PER_CORE 220000000
+#define NUM_TRACES_PER_CORE 5000000000
 #define NUM_TOTAL_TRACES NUM_TRACES_PER_CORE * NUM_CORES 
 #define NUM_INITIAL_FILL 100 
 
@@ -230,9 +230,9 @@ int main(int argc, char * argv[])
 
     std::ofstream outFile;
 #ifdef BASELINE
-    outFile.open("dedup_baseline.out");
+    outFile.open("word_count_baseline.out");
 #else
-    outFile.open("dedup_cotag.out");
+    outFile.open("word_count_cotag.out");
 #endif
 
     for(int i = 0; i < NUM_CORES;i++)
@@ -243,6 +243,7 @@ int main(int argc, char * argv[])
         outFile << "Instructions = " << (tp.last_ts[i] - tp.warmup_period) << "\n";
         outFile << "IPC = " << (double) (tp.last_ts[i] - tp.warmup_period)/(cores[i]->m_clk) << "\n";
         outFile << "Stall cycles = " << cores[i]->num_stall_cycles << "\n";
+        outFile << "Num shootdowns = " << cores[i]->num_shootdown << "\n";
 
         outFile << "--------Core " << i << " -------------" << "\n";
         outFile << "[L1 D$] data hits = " << l1_data_caches[i]->num_data_hits << "\n";

@@ -260,8 +260,9 @@ void Core::tick()
             tlb_shootdown_addr = req.m_addr;
             tlb_shootdown_tid = req.m_tid;
             tlb_shootdown_is_large = req.m_is_large;
-            tlb_shootdown_penalty = 70281;
+            tlb_shootdown_penalty = 4785;
             num_stall_cycles_per_shootdown = 0;
+            num_shootdown++;
             std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
             break;
 #else
@@ -274,6 +275,7 @@ void Core::tick()
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
+                num_shootdown++;
                 std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
                 break;
             }
