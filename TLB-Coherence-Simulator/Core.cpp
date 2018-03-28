@@ -210,6 +210,7 @@ void Core::tick()
             stall = false;
             std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
             std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
+            std::cout << "Number of shootdowns on core = " << m_core_id << " = " << num_shootdown << "\n";
         }
     }
     
@@ -260,7 +261,7 @@ void Core::tick()
             tlb_shootdown_addr = req.m_addr;
             tlb_shootdown_tid = req.m_tid;
             tlb_shootdown_is_large = req.m_is_large;
-            tlb_shootdown_penalty = 4785;
+            tlb_shootdown_penalty = 11466;
             num_stall_cycles_per_shootdown = 0;
             num_shootdown++;
             std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";

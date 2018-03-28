@@ -16,7 +16,7 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_TRACES_PER_CORE 5000000000
+#define NUM_TRACES_PER_CORE 100000L 
 #define NUM_TOTAL_TRACES NUM_TRACES_PER_CORE * NUM_CORES 
 #define NUM_INITIAL_FILL 100 
 
@@ -150,6 +150,8 @@ int main(int argc, char * argv[])
         }
     }
     
+    uint64_t num_traces_added = 0;
+
     std::cout << "Initial fill\n";
     for(int i = 0; i < NUM_INITIAL_FILL; i++)
     {
@@ -160,13 +162,13 @@ int main(int argc, char * argv[])
         if(r->m_core_id >=0 && r->m_core_id < NUM_CORES)
         {
                 cores[r->m_core_id]->add_trace(r);
+                num_traces_added += int(r->m_is_memory_acc);
         } 
     }
     std::cout << "Initial fill done\n";
 
    bool done = false;
    bool timeout = false;
-   uint64_t num_traces_added = NUM_INITIAL_FILL;
    while(!done && !timeout)
    {
 	done = true;
@@ -188,14 +190,14 @@ int main(int argc, char * argv[])
            
            if(num_traces_added % 1000000 == 0)
            {
-               std::cout << "Number of traces added = " << num_traces_added << "\n";
+               std::cout << "[NUM_TRACES_ADDED] Count = " << num_traces_added << "\n";
            }
 
-           num_traces_added++;
+           num_traces_added +=  int(r->m_is_memory_acc);
        }
 
 	   done = done & cores[i]->is_done(); 
-	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 3)
+	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 500)
 	   {
 		   //std::cout << "Core " << i << " timed out " << std::endl;
 		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
@@ -230,9 +232,9 @@ int main(int argc, char * argv[])
 
     std::ofstream outFile;
 #ifdef BASELINE
-    outFile.open("word_count_baseline.out");
+    outFile.open("dedup_baseline_oc1.out");
 #else
-    outFile.open("word_count_cotag.out");
+    outFile.open("dedup_cotag_oc1.out");
 #endif
 
     for(int i = 0; i < NUM_CORES;i++)

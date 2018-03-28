@@ -123,6 +123,7 @@ void TraceProcessor::verifyOpenTraceFiles()
         else
         {
         	fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i]);
+            std::cout << "Size of tid struct = " << sizeof(trace_tlb_tid_entry_t) << "\n";
         }
         used_up[i] = false;
         empty_file[i] = false;
@@ -141,6 +142,7 @@ void TraceProcessor::getShootdownEntry()
         if(!empty_file_shootdown && !feof(shootdown_fp))
         {
             fread((void*)buf3, sizeof(trace_shootdown_entry_t), 1, shootdown_fp);
+            std::cout << "[TLB_SHOOTDOWN_NEXT] = " << buf3->ts << "," << buf3->core_id << "," << buf3->num_cores << "\n";
             used_up_shootdown = false;
         }
         else
@@ -239,7 +241,8 @@ Request* TraceProcessor::generateRequest()
 
                 return req;
             }
-            else if((shootdown_ts == (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
+
+            if((shootdown_ts <= (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
             {
 
                 std::cout << "Shootdown timestamp = " << shootdown_ts << std::endl;
@@ -260,13 +263,15 @@ Request* TraceProcessor::generateRequest()
                     {
                         std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
                         shootdown_num_cores = (shootdown_num_cores != (NUM_CORES - 1)) ? (shootdown_num_cores + 1) % NUM_CORES : 
-                                                   (num_tries == (NUM_CORES - 1)) ? 1 : 2;
+                                                   (num_tries == (2 * NUM_CORES - 1)) ? 1 : 2;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
                         //if(it->second.size() == (shootdown_num_cores - 1))
-                        if(it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end()))
+                        //if(it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end()))
+                        if(((num_tries < NUM_CORES * 2) && it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end())) || \
+                                ((num_tries == NUM_CORES * 2) && (it->second.find(shootdown_core_id) != it->second.end())))
                         {
                             shootdown_va = it->first.m_addr;
                             req = new Request(shootdown_va, TRANSLATION_WRITE, idx, shootdown_is_large, shootdown_core_id);
@@ -277,15 +282,6 @@ Request* TraceProcessor::generateRequest()
 
                     num_tries += 1;
 
-                    if(num_tries > NUM_CORES)
-                    {
-                        req = new Request();
-                        req->m_is_memory_acc = false;
-                        req->m_core_id = idx;
-                        last_ts[idx]++;
-                        used_up_shootdown = true;
-                        goto exit_loop_mc;
-                    }
                 }
                 exit_loop_mc:
                 std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
@@ -318,6 +314,11 @@ Request* TraceProcessor::generateRequest()
                 req->m_is_memory_acc = false;
                 req->m_core_id = idx;
                 last_ts[idx]++;
+
+                if(last_ts[idx] % 1000000 == 0)
+                {
+                    std::cout << "[NUM_INSTR_PROCESSED] Core : " << idx << ", Count = " << last_ts[idx] << "\n";
+                }
                 return req;
             }
         }
@@ -345,7 +346,8 @@ Request* TraceProcessor::generateRequest()
                 }
                 return req;
             }
-            else if((shootdown_ts == (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
+
+            if((shootdown_ts <= (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
             {
                 //Randomly choose either large page or small page
                 Request *req = nullptr;
@@ -363,14 +365,15 @@ Request* TraceProcessor::generateRequest()
                     {
                         std::cout << "[CHANGE_SHOOTDOWN_CORES] Could not find adequate address, changing number of cores affected\n";
                         shootdown_num_cores = (shootdown_num_cores != (NUM_CORES - 1)) ? (shootdown_num_cores + 1) % NUM_CORES : 
-                                                   (num_tries == (NUM_CORES - 1)) ? 1 : 2;
+                                                   (num_tries == (2 * NUM_CORES - 1)) ? 1 : 2;
                     }
 
                     for(auto it = chosen_map.begin(); it != chosen_map.end(); it++)
                     {
                         //If the translation entry is present in the initiator core
                         //And if the number of cores having the translation entries = Number of victim cores
-                        if(it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end()))
+                        if(((num_tries < NUM_CORES * 2) && it->second.size() == (shootdown_num_cores) && (it->second.find(shootdown_core_id) != it->second.end())) || \
+                                ((num_tries == NUM_CORES * 2) && (it->second.find(shootdown_core_id) != it->second.end())))
                         {
                             shootdown_va = it->first.m_addr;
                             uint64_t tid = (idx + tid_offset) % NUM_CORES;
@@ -381,16 +384,6 @@ Request* TraceProcessor::generateRequest()
                     }
 
                     num_tries += 1;
-
-                    if(num_tries > NUM_CORES)
-                    {
-                        req = new Request();
-                        req->m_is_memory_acc = false;
-                        req->m_core_id = idx;
-                        last_ts[idx]++;
-                        used_up_shootdown = true;
-                        goto exit_loop_mt;
-		    }
 
                 }
                 exit_loop_mt:
@@ -431,6 +424,11 @@ Request* TraceProcessor::generateRequest()
                 {
                     tid_offset = switch_threads();
                 }
+
+                if(last_ts[idx] % 1000000 == 0)
+                {
+                    std::cout << "[NUM_INSTR_PROCESSED] Core : " << idx << ", Count = " << last_ts[idx] << "\n";
+                }
                 return req;
             }
 
@@ -458,7 +456,7 @@ Request* TraceProcessor::generateRequest()
 uint64_t TraceProcessor::switch_threads()
 {
     //When context switch count is 0, reinitialize tid offset
-    context_switch_count = (500000000 - 300000000) * (rand()/(double) RAND_MAX);
+    context_switch_count = (5000000000 - 3000000000) * (rand()/(double) RAND_MAX);
     uint64_t tid_offset = (NUM_CORES) * (rand()/(double) RAND_MAX);
     std::cout << "Switching threads\n";
 
