@@ -170,6 +170,7 @@ std::shared_ptr<Cache> Core::get_lower_cache(uint64_t addr, bool is_translation,
         return m_cache_hier->m_caches[m_cache_hier->m_caches.size() - 2];
     }
     
+    std::cout << "Level = " << level << ", is_translation = " << is_translation << "\n";
     //Should never reach here!
     assert(false);
     return nullptr;
@@ -261,7 +262,7 @@ void Core::tick()
             tlb_shootdown_addr = req.m_addr;
             tlb_shootdown_tid = req.m_tid;
             tlb_shootdown_is_large = req.m_is_large;
-            tlb_shootdown_penalty = 11466;
+            tlb_shootdown_penalty = 11486;
             num_stall_cycles_per_shootdown = 0;
             num_shootdown++;
             std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
@@ -362,7 +363,7 @@ void Core::add_trace(Request *req)
 
 bool Core::is_done()
 {
-	return (traceVec.empty() && (m_clk > 0) && (m_rob->is_empty())); 
+	return (traceVec.empty() && (m_clk > 0) && (m_rob->is_empty()) && (m_tlb_hier->is_done()) && (m_cache_hier->is_done()));
 }
 
 bool Core::must_add_trace()

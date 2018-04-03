@@ -81,6 +81,8 @@ public:
     void clflush(const uint64_t addr, uint64_t tid, bool is_translation);
 
     void tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large);
+
+    bool is_done();
     
 };
 

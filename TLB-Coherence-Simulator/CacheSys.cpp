@@ -239,3 +239,8 @@ void CacheSys::tlb_invalidate(uint64_t addr, uint64_t tid, bool is_large)
         assert(!m_caches[i]->lookupCache(req));
     }
 }
+
+bool CacheSys::is_done()
+{
+    return ((m_wait_list.size() == 0) && (m_hit_list.size() == 0));
+}

@@ -30,11 +30,14 @@ private:
     
     class MSHREntry {
     public:
-        kind m_txn_kind;
+        //kind m_txn_kind;
         CacheLine *m_line;
         bool m_is_core_agnostic;
+        bool m_dirty;
+        unsigned int m_insert_pos;
         
-        MSHREntry(kind txn_kind, CacheLine *line) : m_txn_kind(txn_kind), m_line(line), m_is_core_agnostic(false) {}
+        //MSHREntry(kind txn_kind, CacheLine *line, unsigned int insert_pos) : m_txn_kind(txn_kind), m_line(line), m_is_core_agnostic(false), m_insert_pos(insert_pos) {}
+        MSHREntry(CacheLine *line, unsigned int insert_pos) : m_line(line), m_is_core_agnostic(false), m_insert_pos(insert_pos), m_dirty(false) {}
     };
 
     unsigned int m_num_sets;
@@ -60,7 +63,7 @@ private:
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;
-    
+
     std::function<void(std::shared_ptr<Request>)> m_callback;
     
     bool m_is_coherence_enabled;

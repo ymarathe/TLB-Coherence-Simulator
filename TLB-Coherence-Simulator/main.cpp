@@ -16,7 +16,7 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_TRACES_PER_CORE 100000L 
+#define NUM_TRACES_PER_CORE 81000000L
 #define NUM_TOTAL_TRACES NUM_TRACES_PER_CORE * NUM_CORES 
 #define NUM_INITIAL_FILL 100 
 
@@ -100,7 +100,7 @@ int main(int argc, char * argv[])
         rob_arr.push_back(std::make_shared<ROB>(ROB()));
         
         cores.push_back(std::make_shared<Core>(Core(data_hier[i], tlb_hier[i], rob_arr[i])));
-        
+
         data_hier[i]->set_core(cores[i]);
         tlb_hier[i]->set_core(cores[i]);
         
@@ -149,7 +149,7 @@ int main(int argc, char * argv[])
             }
         }
     }
-    
+
     uint64_t num_traces_added = 0;
 
     std::cout << "Initial fill\n";
@@ -197,7 +197,7 @@ int main(int argc, char * argv[])
        }
 
 	   done = done & cores[i]->is_done(); 
-	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 500)
+	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 5)
 	   {
 		   //std::cout << "Core " << i << " timed out " << std::endl;
 		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
@@ -212,6 +212,7 @@ int main(int argc, char * argv[])
                {
                    std::cout << "Core " << j << " NOT done\n";
 		           std::cout << "Blocking request = " ; cores[j]->m_rob->peek_commit_ptr();
+                   std::cout << "Core clk = " << cores[j]->m_clk << "\n";
                }
 
                if(cores[j]->stall)

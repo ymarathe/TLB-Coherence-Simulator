@@ -47,6 +47,7 @@ void LRURepl::updateReplState(uint64_t set_num, int way)
         if(setReplState[i].m_lru_stack_position < pivot)
         {
             setReplState[i].m_lru_stack_position += 1;
+            assert(setReplState[i].m_lru_stack_position <= m_associativity);
         }
     }
     
