@@ -233,9 +233,9 @@ int main(int argc, char * argv[])
 
     std::ofstream outFile;
 #ifdef BASELINE
-    outFile.open("dedup_baseline_oc1.out");
+    outFile.open("dedup_baseline_oc1_test.out");
 #else
-    outFile.open("dedup_cotag_oc1.out");
+    outFile.open("dedup_cotag_oc1_test.out");
 #endif
 
     for(int i = 0; i < NUM_CORES;i++)

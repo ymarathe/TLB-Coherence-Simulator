@@ -209,6 +209,7 @@ void Core::tick()
             }
 #endif
             stall = false;
+            std::cout << "Unstalling core " << m_core_id << " at cycle = " << m_clk << "\n";
             std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
             std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
             std::cout << "Number of shootdowns on core = " << m_core_id << " = " << num_shootdown << "\n";
@@ -265,7 +266,7 @@ void Core::tick()
             tlb_shootdown_penalty = 11486;
             num_stall_cycles_per_shootdown = 0;
             num_shootdown++;
-            std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
+            std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
             break;
 #else
             std::cout << "Issuing translation coherence write to data hierarchy\n";
@@ -278,7 +279,7 @@ void Core::tick()
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
                 num_shootdown++;
-                std::cout << "Stalling core " << m_core_id << " until translation coherence is complete\n";
+                std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
                 break;
             }
             else

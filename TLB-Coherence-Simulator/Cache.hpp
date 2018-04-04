@@ -30,14 +30,11 @@ private:
     
     class MSHREntry {
     public:
-        //kind m_txn_kind;
-        CacheLine *m_line;
         bool m_is_core_agnostic;
         bool m_dirty;
-        unsigned int m_insert_pos;
-        
-        //MSHREntry(kind txn_kind, CacheLine *line, unsigned int insert_pos) : m_txn_kind(txn_kind), m_line(line), m_is_core_agnostic(false), m_insert_pos(insert_pos) {}
-        MSHREntry(CacheLine *line, unsigned int insert_pos) : m_line(line), m_is_core_agnostic(false), m_insert_pos(insert_pos), m_dirty(false) {}
+        CoherenceState m_coh_state;
+
+        MSHREntry(bool is_core_agnostic = false, bool dirty = false, CoherenceState coh_state = INVALID) : m_is_core_agnostic(is_core_agnostic), m_dirty(dirty), m_coh_state(coh_state) {}
     };
 
     unsigned int m_num_sets;
