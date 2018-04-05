@@ -7,6 +7,8 @@
 //
 
 #include "ROB.hpp"
+#include <assert.h>
+#include <algorithm>
 
 bool ROB::issue(bool is_memory_access, Request *r, uint64_t clk)
 {
@@ -28,7 +30,20 @@ bool ROB::issue(bool is_memory_access, Request *r, uint64_t clk)
         {
             r->update_request_type_from_core(TRANSLATION_READ);
         }
-        is_request_ready.insert(std::pair<Request, bool>(*r, false));
+        request_queue.push_back(*r);
+        auto req_ready_iter = is_request_ready.find(*r);
+        if(req_ready_iter != is_request_ready.end())
+        {
+            req_ready_iter->second.num_occ_in_req_queue++;
+        }
+        else
+        {
+            ReqQueueMetaData reqqmd;
+            is_request_ready.insert(std::pair<Request, ReqQueueMetaData>(*r, reqqmd));
+            assert(is_request_ready[*r].num_occ_in_req_queue == 1);
+            assert(!is_request_ready[*r].ready);
+        }
+
         r->update_request_type_from_core(act_txn_kind);
     }
 
@@ -93,15 +108,11 @@ bool ROB::can_issue()
 
 void ROB::mem_mark_translation_done(Request &r)
 {
-    auto entries = is_request_ready.equal_range(r);
-
-    for(auto it = entries.first; it != entries.second; it++)
+    auto entry = is_request_ready.find(r);
+    if(entry != is_request_ready.end())
     {
-        it->second = true;
+        entry->second.ready = true;
     }
-
-    //If there is a translation write/read to the same address, requests get merged in the data hierarchy.
-    //Therefore there might be a response only for a TRANSLATION_WRITE
 
     bool check_read = false;
 
@@ -111,15 +122,15 @@ void ROB::mem_mark_translation_done(Request &r)
         r.m_type = TRANSLATION_READ;
     }
 
-    entries = is_request_ready.equal_range(r);
-
-    for(auto it = entries.first; it != entries.second; it++)
+    entry = is_request_ready.find(r);
+    if(entry != is_request_ready.end())
     {
-        it->second = true;
+        entry->second.ready = true;
     }
 
     if(check_read)
         r.m_type = TRANSLATION_WRITE;
+
 }
 
 bool ROB::is_empty()

@@ -146,7 +146,7 @@ void Cache::evict(uint64_t set_num, const CacheLine &line)
             {
                 unsigned int hit_pos;
                 uint64_t index = lower_cache->get_index(evict_addr);
-                uint64_t tag = lower_cache->get_index(evict_addr);
+                uint64_t tag = lower_cache->get_tag(evict_addr);
                 std::vector<CacheLine> set = lower_cache->m_tagStore[index];
                 assert(lower_cache->is_found(set, tag, line.is_translation, line.tid, hit_pos));
             }
@@ -255,7 +255,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         assert(!((txn_kind == TRANSLATION_WRITE) | (txn_kind == TRANSLATION_WRITEBACK) | (txn_kind == TRANSLATION_READ)) ^(line.is_translation));
         
         m_repl->updateReplState(index, hit_pos);
-        
+
         req.add_callback(m_callback);
         std::shared_ptr<Request> r = std::make_shared<Request>(req);
         
@@ -638,6 +638,12 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         //If we are in the last level cache and mshr_entry has been made core agnostic, make the upstream request core agnostic.
         if(it->second->m_is_core_agnostic && m_core_id == -1)
             r->m_is_core_agnostic = true;
+
+        CoherenceState propagate_coh_state = it->second->m_coh_state;
+
+        CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
+
+        handle_coherence_action(coh_action, *r, 0, true);
         
         delete(it->second);
         
@@ -645,12 +651,6 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         
         //Ensure erasure in the MSHR
         assert(m_mshr_entries.find(*r) == m_mshr_entries.end());
-
-        CoherenceState propagate_coh_state = it->second->m_coh_state;
-
-        CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
-
-        handle_coherence_action(coh_action, *r, 0, true);
     }
 
     it = m_wb_entries.find(*r);
@@ -728,6 +728,13 @@ void Cache::release_lock(std::shared_ptr<Request> r)
 
     if(m_cache_level == 1 && m_cache_type == TRANSLATION_ONLY && r->is_translation_request())
     {
+        #ifdef DEADLOCK_DEBUG
+        if(r->m_addr == 0x0)
+        {
+            std::cout << "[RELEASE_LOCK_MEM_TR_DONE] At clk = " << m_core->m_clk << ", in hier = " << m_cache_sys->get_is_translation_hier() << ", in level = " << m_cache_level << ", in core = " << m_core_id << ", request = " << std::hex << (*r) << std::dec;
+        }
+        #endif
+
         m_core->m_rob->mem_mark_translation_done(*r);
     }
 

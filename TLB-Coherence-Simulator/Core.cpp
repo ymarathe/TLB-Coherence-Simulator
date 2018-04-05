@@ -218,10 +218,12 @@ void Core::tick()
     
     m_num_retired += m_rob->retire(m_clk);
 
-    for(auto it = m_rob->is_request_ready.begin(); it != m_rob->is_request_ready.end() && !stall;)
+    if(m_rob->request_queue.size() > 0)
     {
-        Request req = it->first;
-        bool can_issue = it->second;
+        Request req = m_rob->request_queue.front();
+        auto rr_iter = m_rob->is_request_ready.find(req);
+        assert(rr_iter != m_rob->is_request_ready.end());
+        bool can_issue = rr_iter->second.ready;
 
         if(req.m_is_read && req.m_is_translation)
         {
@@ -239,25 +241,30 @@ void Core::tick()
         {
             req.update_request_type_from_core(DATA_WRITE);
         }
-        
-        if(can_issue && (req.m_type != TRANSLATION_WRITE))
+
+        if(!stall && can_issue && (req.m_type != TRANSLATION_WRITE))
         {
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
 
             if(data_req_status != REQUEST_RETRY)
             {
-                it = m_rob->is_request_ready.erase(it);
-                break;
-            }
-            else
-            {
-                it++;
+                rr_iter->second.num_occ_in_req_queue--;
+                if(rr_iter->second.num_occ_in_req_queue == 0)
+                {
+                    m_rob->is_request_ready.erase(rr_iter);
+                }
+                m_rob->request_queue.pop_front();
             }
         }
-        else if(can_issue && (req.m_type == TRANSLATION_WRITE))
+        else if(!stall && can_issue && (req.m_type == TRANSLATION_WRITE))
         {
 #ifdef BASELINE
-            it = m_rob->is_request_ready.erase(it);
+            rr_iter->second.num_occ_in_req_queue--;
+            if(rr_iter->second.num_occ_in_req_queue == 0)
+            {
+                m_rob->is_request_ready.erase(rr_iter);
+            }
+            m_rob->request_queue.pop_front();
             m_rob->mem_mark_done(req);
             stall = true;
             tlb_shootdown_addr = req.m_addr;
@@ -267,31 +274,26 @@ void Core::tick()
             num_stall_cycles_per_shootdown = 0;
             num_shootdown++;
             std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
-            break;
 #else
             std::cout << "Issuing translation coherence write to data hierarchy\n";
             RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
             if(data_req_status != REQUEST_RETRY)
             {
-                it = m_rob->is_request_ready.erase(it);
+                rr_iter->second.num_occ_in_req_queue--;
+                if(rr_iter->second.num_occ_in_req_queue == 0)
+                {
+                    m_rob->is_request_ready.erase(rr_iter);
+                }
+                m_rob->request_queue.pop_front();
                 stall = true;
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
                 num_shootdown++;
                 std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
-                break;
-            }
-            else
-            {
-                it++;
             }
 #endif
-        }
-        else
-        {
-            it++;
-        }
+            }
     }
 
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue() && !stall; i++)
