@@ -225,75 +225,83 @@ void Core::tick()
         assert(rr_iter != m_rob->is_request_ready.end());
         bool can_issue = rr_iter->second.ready;
 
-        if(req.m_is_read && req.m_is_translation)
+        if(can_issue && !stall)
         {
-            req.update_request_type_from_core(TRANSLATION_READ);
-        }
-        else if(req.m_is_read && !req.m_is_translation)
-        {
-            req.update_request_type_from_core(DATA_READ);
-        }
-        else if(!req.m_is_read && req.m_is_translation)
-        {
-            req.update_request_type_from_core(TRANSLATION_WRITE);
-        }
-        else if(!req.m_is_read && !req.m_is_translation)
-        {
-            req.update_request_type_from_core(DATA_WRITE);
-        }
 
-        if(!stall && can_issue && (req.m_type != TRANSLATION_WRITE))
-        {
-            RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
-
-            if(data_req_status != REQUEST_RETRY)
+            if(req.m_is_read && req.m_is_translation)
             {
-                rr_iter->second.num_occ_in_req_queue--;
-                if(rr_iter->second.num_occ_in_req_queue == 0)
-                {
-                    m_rob->is_request_ready.erase(rr_iter);
-                }
-                m_rob->request_queue.pop_front();
+                req.update_request_type_from_core(TRANSLATION_READ);
             }
-        }
-        else if(!stall && can_issue && (req.m_type == TRANSLATION_WRITE))
-        {
+            else if(req.m_is_read && !req.m_is_translation)
+            {
+                req.update_request_type_from_core(DATA_READ);
+            }
+            else if(!req.m_is_read && req.m_is_translation)
+            {
+                req.update_request_type_from_core(TRANSLATION_WRITE);
+            }
+            else if(!req.m_is_read && !req.m_is_translation)
+            {
+                req.update_request_type_from_core(DATA_WRITE);
+            }
+
+            if(req.m_type != TRANSLATION_WRITE)
+            {
+                RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+
+                if(data_req_status != REQUEST_RETRY)
+                {
+                    rr_iter->second.num_occ_in_req_queue--;
+                    if(rr_iter->second.num_occ_in_req_queue == 0)
+                    {
+                        m_rob->is_request_ready.erase(rr_iter);
+                    }
+                    m_rob->request_queue.pop_front();
+                }
+            }
+            else if(req.m_type == TRANSLATION_WRITE)
+            {
 #ifdef BASELINE
-            rr_iter->second.num_occ_in_req_queue--;
-            if(rr_iter->second.num_occ_in_req_queue == 0)
-            {
-                m_rob->is_request_ready.erase(rr_iter);
-            }
-            m_rob->request_queue.pop_front();
-            m_rob->mem_mark_done(req);
-            stall = true;
-            tlb_shootdown_addr = req.m_addr;
-            tlb_shootdown_tid = req.m_tid;
-            tlb_shootdown_is_large = req.m_is_large;
-            tlb_shootdown_penalty = 11486;
-            num_stall_cycles_per_shootdown = 0;
-            num_shootdown++;
-            std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
-#else
-            std::cout << "Issuing translation coherence write to data hierarchy\n";
-            RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
-            if(data_req_status != REQUEST_RETRY)
-            {
                 rr_iter->second.num_occ_in_req_queue--;
                 if(rr_iter->second.num_occ_in_req_queue == 0)
                 {
                     m_rob->is_request_ready.erase(rr_iter);
                 }
                 m_rob->request_queue.pop_front();
+                m_rob->mem_mark_done(req);
+#ifdef IDEAL
+                stall = false;
+#else
                 stall = true;
+#endif
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
+                tlb_shootdown_penalty = 11486;
+                num_stall_cycles_per_shootdown = 0;
                 num_shootdown++;
                 std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
-            }
+#else
+                std::cout << "Issuing translation coherence write to data hierarchy\n";
+                RequestStatus data_req_status = m_cache_hier->lookupAndFillCache(req);
+                if(data_req_status != REQUEST_RETRY)
+                {
+                    rr_iter->second.num_occ_in_req_queue--;
+                    if(rr_iter->second.num_occ_in_req_queue == 0)
+                    {
+                        m_rob->is_request_ready.erase(rr_iter);
+                    }
+                    m_rob->request_queue.pop_front();
+                    stall = true;
+                    tlb_shootdown_addr = req.m_addr;
+                    tlb_shootdown_tid = req.m_tid;
+                    tlb_shootdown_is_large = req.m_is_large;
+                    num_shootdown++;
+                    std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
+                }
 #endif
             }
+        }
     }
 
     for(int i = 0; i < m_rob->m_issue_width && !traceVec.empty() && m_rob->can_issue() && !stall; i++)

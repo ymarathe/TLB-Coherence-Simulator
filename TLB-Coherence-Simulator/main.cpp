@@ -233,7 +233,11 @@ int main(int argc, char * argv[])
 
     std::ofstream outFile;
 #ifdef BASELINE
+#ifdef IDEAL
+    outFile.open("dedup_baseline_oc1_test_ideal.out");
+#else
     outFile.open("dedup_baseline_oc1_test.out");
+#endif
 #else
     outFile.open("dedup_cotag_oc1_test.out");
 #endif
