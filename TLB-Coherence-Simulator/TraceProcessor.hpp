@@ -74,11 +74,13 @@ private:
 public:
     //Variables
     uint64_t *last_ts;
+    uint64_t global_ts;
 #ifdef LONG_WARMUP
     uint64_t warmup_period = 10000000000;
 #else
     uint64_t warmup_period = 100000;
 #endif
+    bool is_multicore;
     uint64_t total_instructions_in_real_run[NUM_CORES];
     uint64_t ideal_cycles_in_real_run[NUM_CORES];
     uint64_t num_tlb_misses_in_real_run[NUM_CORES];
@@ -110,6 +112,8 @@ public:
         {
         	last_ts[i] = warmup_period;
         }
+
+        global_ts = warmup_period;
 
         context_switch_count = (5000000 - 3000000) * (rand()/(double) RAND_MAX);
         std::cout << "Context switch count = " << context_switch_count << "\n";

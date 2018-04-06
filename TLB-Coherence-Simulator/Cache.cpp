@@ -34,8 +34,8 @@ bool Cache::is_found(const std::vector<CacheLine>& set, const uint64_t tag, bool
 {
     auto it = std::find_if(set.begin(), set.end(), [tag, is_translation, tid, this](const CacheLine &l)
                            {
-                               return ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid));
-                               //return (is_translation) ?  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid)) :  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation));
+                               //Threads share address space, so no need to check for tid if the request type is not translation
+                               return (is_translation) ?  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation) && (l.tid == tid)) :  ((l.tag == tag) && (l.valid) && (l.is_translation == is_translation));
                            });
     
     hit_pos = static_cast<unsigned int>(it - set.begin());

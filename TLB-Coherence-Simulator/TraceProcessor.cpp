@@ -16,6 +16,8 @@ void TraceProcessor::processPair(std::string name, std::string val)
             strcpy(fmt, "-m");
         else
             strcpy(fmt, "-t");
+
+        is_multicore = (strcasecmp(fmt, "-m") == 0);
     }
     
     if (name.find("cores") != std::string::npos)
@@ -94,7 +96,7 @@ void TraceProcessor::parseAndSetupInputs(char *input_cfg)
 
 void TraceProcessor::verifyOpenTraceFiles()
 {
-    for (int i = 0 ;i < num_cores; i++)
+    for (int i = 0 ; (i < num_cores) && is_multicore; i++)
     {
         trace_fp[i] = fopen((char*)trace[i], "r");
         if (!trace_fp[i])
@@ -103,6 +105,25 @@ void TraceProcessor::verifyOpenTraceFiles()
             std::cout << trace[i] << " does not exist" << std::endl;
             exit(0);
         }
+        fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i]);
+        used_up[i] = false;
+        empty_file[i] = false;
+        entry_count[i] = 1;
+    }
+
+    if(!is_multicore)
+    {
+        trace_fp[0] = fopen((char*)trace[0], "r");
+        if (!trace_fp[0])
+        {
+            std::cout << "[Error] Check trace file path" << std::endl;
+            std::cout << trace[0] << " does not exist" << std::endl;
+            exit(0);
+        }
+        fread ((void*)&buf2[0], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[0]);
+        used_up[0] = false;
+        empty_file[0] = false;
+        entry_count[0] = 1;
     }
 
     shootdown_fp = fopen((char*) shootdown, "r");
@@ -113,26 +134,9 @@ void TraceProcessor::verifyOpenTraceFiles()
         exit(0);
     }
 
-    for (int i = 0;i < num_cores; i++)
-    {
-    	
-        if (strcasecmp(fmt, "-m") == 0)
-        {
-        	fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i]);
-        }
-        else
-        {
-        	fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i]);
-            std::cout << "Size of tid struct = " << sizeof(trace_tlb_tid_entry_t) << "\n";
-        }
-        used_up[i] = false;
-        empty_file[i] = false;
-    }
-
     fread((void*)buf3, sizeof(trace_shootdown_entry_t), 1, shootdown_fp);
     used_up_shootdown = false;
 
-    for (int i = 0;i < num_cores; i++) entry_count[i] = 1;
 }
 
 void TraceProcessor::getShootdownEntry()
@@ -158,7 +162,7 @@ int TraceProcessor::getNextEntry()
     int index = -1;
     uint64_t least = 0xffffffffffffffff;
     
-    for(int i = 0; i < num_cores; i++)
+    for(int i = 0; (i < num_cores) && is_multicore; i++)
     {
         if(used_up[i])
         {
@@ -167,14 +171,7 @@ int TraceProcessor::getNextEntry()
             {
                 if (!feof(trace_fp[i]))
                 {
-                    if (strcasecmp(fmt, "-m") == 0)
-                    {
-                        fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i] );
-                    }
-                    else
-                    {
-                        fread ((void*)&buf2[i], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[i] );
-                    }
+                    fread ((void*)&buf1[i], sizeof(trace_tlb_entry_t), 1, trace_fp[i] );
                     used_up[i] = false;
                     entry_count[i]++;
                 }
@@ -187,20 +184,33 @@ int TraceProcessor::getNextEntry()
         }
         if (!empty_file[i])
         {
-            if (strcasecmp(fmt, "-m") == 0)
+            if (buf1[i].ts < least)
             {
-                if (buf1[i].ts < least)
-                {
-                    least = buf1[i].ts;
-                    index = i;
-                }
+                least = buf1[i].ts;
+                index = i;
             }
-            else
+        }
+    }
+
+    if(!is_multicore)
+    {
+        index = 0;
+
+        if(used_up[0])
+        {
+            if(!empty_file[0])
             {
-                if (buf2[i].ts < least)
+                if(!feof(trace_fp[0]))
                 {
-                    least = buf2[i].ts;
-                    index = i;
+                    fread((void*)&buf2[0], sizeof(trace_tlb_tid_entry_t), 1, trace_fp[0]);
+                    used_up[0] = false;
+                    entry_count[0]++;
+                }
+                else
+                {
+                    std::cout << "Done with trace " << "\n";
+                    empty_file[0] = true;
+                    index = -1;
                 }
             }
         }
@@ -242,7 +252,7 @@ Request* TraceProcessor::generateRequest()
                 return req;
             }
 
-            if((shootdown_ts <= (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
+            if((shootdown_ts <= (last_ts[idx])) && (shootdown_core_id == idx))
             {
 
                 std::cout << "Shootdown timestamp = " << shootdown_ts << std::endl;
@@ -328,13 +338,17 @@ Request* TraceProcessor::generateRequest()
             is_large = buf2[idx].large;
             is_write = (bool)((buf2[idx].write != 0)? true: false);
             curr_ts[idx] = buf2[idx].ts;
+            tid = buf2[idx].tid;
+            unsigned int core = (tid + tid_offset) % NUM_CORES;
 
-            if(curr_ts[idx] == last_ts[idx])
+            if(curr_ts[idx] == global_ts)
             {
                 //Threads switch about every context switch interval
-                uint64_t tid = (idx + tid_offset) % NUM_CORES;
-                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, tid, is_large, idx);
+                //uint64_t tid = (idx + tid_offset) % NUM_CORES;
+                Request *req = new Request(va, is_write ? DATA_WRITE : DATA_READ, tid, is_large, core);
                 used_up[idx] = true;
+
+                last_ts[core] = global_ts;
 
                 //add_to_presence_map(*req);
 
@@ -347,7 +361,7 @@ Request* TraceProcessor::generateRequest()
                 return req;
             }
 
-            if((shootdown_ts <= (last_ts[idx] - warmup_period)) && (shootdown_core_id == idx))
+            if(shootdown_ts <= global_ts)
             {
                 //Randomly choose either large page or small page
                 Request *req = nullptr;
@@ -376,7 +390,6 @@ Request* TraceProcessor::generateRequest()
                                 ((num_tries == NUM_CORES * 2) && (it->second.find(shootdown_core_id) != it->second.end())))
                         {
                             shootdown_va = it->first.m_addr;
-                            uint64_t tid = (idx + tid_offset) % NUM_CORES;
                             req = new Request(shootdown_va, TRANSLATION_WRITE, tid, shootdown_is_large, shootdown_core_id);
                             used_up_shootdown = true;
                             goto exit_loop_mt;
@@ -411,12 +424,12 @@ Request* TraceProcessor::generateRequest()
 
                 return req;
             }
-            else if(curr_ts[idx] > last_ts[idx])
+            else if(curr_ts[idx] > global_ts)
             {
                 Request *req = new Request();
                 req->m_is_memory_acc = false;
-                req->m_core_id = idx;
-                last_ts[idx]++;
+                req->m_core_id = (global_ts) % NUM_CORES;
+                global_ts++;
 
                 //For every instruction added, decrement context_switch_count
                 context_switch_count--;
@@ -425,9 +438,9 @@ Request* TraceProcessor::generateRequest()
                     tid_offset = switch_threads();
                 }
 
-                if(last_ts[idx] % 1000000 == 0)
+                if(global_ts % 1000000 == 0)
                 {
-                    std::cout << "[NUM_INSTR_PROCESSED] Core : " << idx << ", Count = " << last_ts[idx] << "\n";
+                    std::cout << "[NUM_INSTR_PROCESSED] : Count = " << global_ts << "\n";
                 }
                 return req;
             }
@@ -441,16 +454,7 @@ Request* TraceProcessor::generateRequest()
 
     }
     
-    std::cout << "[WARNING]: index = -1" << std::endl;
-    for(int i = 0; i < 8; i++)
-    {
-	    std::cout << "last_ts[" << i << "] = " << last_ts[i] << std::endl; 
-    }
-    exit(0);
-    
-    Request *req = new Request();
-    req->m_is_memory_acc = false;
-    return req; 
+    return nullptr;
 }
 
 uint64_t TraceProcessor::switch_threads()
