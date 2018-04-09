@@ -75,8 +75,8 @@ public:
     //Variables
     uint64_t *last_ts;
     uint64_t global_ts;
-#ifdef LONG_WARMUP
-    uint64_t warmup_period = 10000000000;
+#ifdef WARMUP
+    uint64_t warmup_period = WARMUP;
 #else
     uint64_t warmup_period = 100000;
 #endif

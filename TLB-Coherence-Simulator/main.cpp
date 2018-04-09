@@ -16,14 +16,26 @@
 #include <memory>
 #include "utils.hpp"
 
-#define NUM_TRACES_PER_CORE 81000000L
+#ifndef NUM_TRACES_PER_CORE
+    #define NUM_TRACES_PER_CORE 1660000000L
+#endif
 #define NUM_INITIAL_FILL 100 
+#define STRING(s) #s
 
 int main(int argc, char * argv[])
 {
     int num_args = 1;
     int num_real_args = num_args + 1;
     uint64_t num_total_traces;
+#if BENCHMARK == 1
+    std::string benchmark = "httpd";
+#elif BENCHMARK == 2
+    std::string benchmark = "dedup";
+#elif BENCHMARK == 3
+    std::string benchmark = "word_count";
+#else
+    std::string benchmark = "dedup";
+#endif
     
     TraceProcessor tp(8);
     if (argc < num_real_args)
@@ -47,6 +59,20 @@ int main(int argc, char * argv[])
     {
         num_total_traces = NUM_TRACES_PER_CORE;
     }
+
+    std::ofstream outFile;
+#ifdef BASELINE
+#ifdef IDEAL
+    std::cout << ("Opening " + benchmark + "_baseline_ideal.out") << std::endl;
+    outFile.open(benchmark + "_baseline_ideal.out");
+#else
+    std::cout << ("Opening " + benchmark + "_baseline.out") << std::endl;
+    outFile.open(benchmark + "_baseline.out");
+#endif
+#else
+    std::cout << ("Opening " + benchmark + "_cotag.out") << std::endl;
+    outFile.open(benchmark + "_cotag.out");
+#endif
     
     std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(8192, 16, 64, 38,  DATA_AND_TRANSLATION));
     
@@ -241,17 +267,6 @@ int main(int argc, char * argv[])
  	}
    }
 
-
-    std::ofstream outFile;
-#ifdef BASELINE
-#ifdef IDEAL
-    outFile.open("dedup_baseline_oc1_test_ideal.out");
-#else
-    outFile.open("dedup_baseline_oc1_test.out");
-#endif
-#else
-    outFile.open("dedup_cotag_oc1_test.out");
-#endif
     uint64_t total_num_cycles = 0;
     uint64_t total_stall_cycles = 0;
     uint64_t total_shootdowns = 0;

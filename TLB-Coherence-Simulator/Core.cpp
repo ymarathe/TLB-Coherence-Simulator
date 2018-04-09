@@ -282,7 +282,11 @@ void Core::tick()
 #ifdef IDEAL
                 tlb_shootdown_penalty = 0;
 #else
-                tlb_shootdown_penalty = 11486;
+#ifdef SHOOTDOWN_PENALTY
+                tlb_shootdown_penalty = SHOOTDOWN_PENALTY;
+#else
+                tlb_shootdown_penalty = 0;
+#endif
 #endif
                 num_stall_cycles_per_shootdown = 0;
                 num_shootdown++;
