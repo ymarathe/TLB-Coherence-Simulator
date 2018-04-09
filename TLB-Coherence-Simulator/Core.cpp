@@ -183,8 +183,6 @@ void Core::tick()
     
     if(stall)
     {
-        num_stall_cycles++;
-        num_stall_cycles_per_shootdown++;
         //Till translation coherence is serviced, stall issue
 #ifdef BASELINE
         if(num_stall_cycles_per_shootdown == tlb_shootdown_penalty)
@@ -214,9 +212,17 @@ void Core::tick()
             std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
             std::cout << "Number of shootdowns on core = " << m_core_id << " = " << num_shootdown << "\n";
         }
+        else
+        {
+            num_stall_cycles++;
+            num_stall_cycles_per_shootdown++;
+        }
     }
     
-    m_num_retired += m_rob->retire(m_clk);
+    if(!stall)
+    {
+        m_num_retired += m_rob->retire(m_clk);
+    }
 
     if(m_rob->request_queue.size() > 0)
     {
@@ -269,15 +275,15 @@ void Core::tick()
                 }
                 m_rob->request_queue.pop_front();
                 m_rob->mem_mark_done(req);
-#ifdef IDEAL
-                stall = false;
-#else
                 stall = true;
-#endif
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
+#ifdef IDEAL
+                tlb_shootdown_penalty = 0;
+#else
                 tlb_shootdown_penalty = 11486;
+#endif
                 num_stall_cycles_per_shootdown = 0;
                 num_shootdown++;
                 std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
@@ -351,12 +357,10 @@ void Core::tick()
         }
     }
 
-    /*if((traceVec.size() % 10000 == 0) && traceVec.size() != 1000000)
+    if(!m_rob->is_empty() && !stall)
     {
-        std::cout << "Traces left to be processed = " << traceVec.size() << ", on core = " << m_core_id << "\n";
-    }*/
-    
-    m_clk++;
+        m_clk++;
+    }
 }
 
 void Core::set_core_id(unsigned int core_id)
@@ -374,7 +378,7 @@ void Core::add_trace(Request *req)
 
 bool Core::is_done()
 {
-	return (traceVec.empty() && (m_clk > 0) && (m_rob->is_empty()) && (m_tlb_hier->is_done()) && (m_cache_hier->is_done()));
+	return ((m_clk > 0) && (m_rob->is_empty()) && (m_tlb_hier->is_done()) && (m_cache_hier->is_done()));
 }
 
 bool Core::must_add_trace()

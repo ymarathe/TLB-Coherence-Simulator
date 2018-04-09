@@ -397,29 +397,38 @@ Request* TraceProcessor::generateRequest()
                     }
 
                     num_tries += 1;
-
+                    if(num_tries > NUM_CORES * 2)
+                    {
+                        req = nullptr;
+                        used_up_shootdown = true;
+                        std::cout << "[GIVING_UP]\n";
+                        goto exit_loop_mt;
+                    }
                 }
                 exit_loop_mt:
-                std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
-                std::cout << "Num cores affected = " << shootdown_num_cores << "\n";
+                if(req != nullptr)
+                {
+                    std::cout << "[TLB_SHOOTDOWN_REQ]: Generating " << std::hex << (*req) << std::dec;
+                    std::cout << "Num cores affected = " << shootdown_num_cores << "\n";
 
-                RequestDesc rdesc(req->m_addr, req->m_tid, req->m_is_large);
-                std::cout << rdesc << ": ";
-                if(req->m_is_large)
-                {
-                    for(auto it = presence_map_large_page[rdesc].begin(); it != presence_map_large_page[rdesc].end(); it++)
+                    RequestDesc rdesc(req->m_addr, req->m_tid, req->m_is_large);
+                    std::cout << rdesc << ": ";
+                    if(req->m_is_large)
                     {
-                        std::cout << *it << ", ";
+                        for(auto it = presence_map_large_page[rdesc].begin(); it != presence_map_large_page[rdesc].end(); it++)
+                        {
+                            std::cout << *it << ", ";
+                        }
+                        std::cout << "\n";
                     }
-                    std::cout << "\n";
-                }
-                else
-                {
-                    for(auto it = presence_map_small_page[rdesc].begin(); it != presence_map_small_page[rdesc].end(); it++)
+                    else
                     {
-                        std::cout << *it << ", ";
+                        for(auto it = presence_map_small_page[rdesc].begin(); it != presence_map_small_page[rdesc].end(); it++)
+                        {
+                            std::cout << *it << ", ";
+                        }
+                        std::cout << "\n";
                     }
-                    std::cout << "\n";
                 }
 
                 return req;

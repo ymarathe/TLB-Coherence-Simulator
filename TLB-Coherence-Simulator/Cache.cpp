@@ -334,7 +334,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
                          (req.m_type == DATA_READ) ? DATA_WRITE : (req.m_type == DATA_WRITE) ? DATA_READ: INVALID_TXN_KIND;
     auto mshr_iter_fp = m_mshr_entries.find(f_req);
 
-    unsigned int mshr_size = (m_cache_type == TRANSLATION_ONLY && m_cache_level == 1) ? 2 : INT_MAX;
+    unsigned int mshr_size = m_cache_sys->is_last_level(m_cache_level) ? 32 * NUM_CORES :
+                                m_cache_sys->is_penultimate_level(m_cache_level) && !m_cache_sys->get_is_translation_hier() ? 32 : 16;
 
     if(mshr_iter != m_mshr_entries.end() || mshr_iter_fp != m_mshr_entries.end())
     {

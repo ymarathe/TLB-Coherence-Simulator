@@ -183,8 +183,7 @@ int main(int argc, char * argv[])
 	done = true;
    	for(int i = 0; i < NUM_CORES; i++)
    	{
-        if(!cores[i]->is_done())
-	        cores[i]->tick();
+	   cores[i]->tick();
        
        if((num_traces_added < num_total_traces) && (cores[i]->must_add_trace()))
        {
@@ -208,7 +207,7 @@ int main(int argc, char * argv[])
            }
        }
 
-	   done = done & cores[i]->is_done(); 
+	   done = done & cores[i]->is_done() && (cores[i]->traceVec.size() == 0);
 	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 5)
 	   {
 		   //std::cout << "Core " << i << " timed out " << std::endl;
@@ -282,6 +281,8 @@ int main(int argc, char * argv[])
         else
         {
             outFile << "Cycles = " << cores[i]->m_clk << "\n";
+            outFile << "Stall cycles = " << cores[i]->num_stall_cycles << "\n";
+            outFile << "Num shootdowns = " << cores[i]->num_shootdown << "\n";
             total_num_cycles += cores[i]->m_clk;
             total_stall_cycles += cores[i]->num_stall_cycles;
             total_shootdowns += cores[i]->num_shootdown;
@@ -386,7 +387,7 @@ int main(int argc, char * argv[])
         outFile << "Instructions = " << (tp.global_ts - tp.warmup_period) << "\n";
         if(total_num_cycles > 0)
         {
-            outFile << "IPC = " << (double) (tp.global_ts - tp.warmup_period)/(total_num_cycles) << "\n";
+            outFile << "IPC = " << (double) (tp.global_ts - tp.warmup_period)/(total_num_cycles + total_stall_cycles) << "\n";
         }
         outFile << "Stall cycles = " << total_stall_cycles << "\n";
         outFile << "Num shootdowns = " << total_shootdowns << "\n";
