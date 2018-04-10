@@ -90,6 +90,31 @@ void ROB::mem_mark_done(Request &r)
             it++;
         }
     }
+
+    bool check_read = false;
+
+    if (r.m_type == TRANSLATION_WRITE)
+    {
+        check_read = true;
+        r.m_type = TRANSLATION_READ;
+    }
+
+    for(std::vector<ROBEntry>::iterator it = m_window.begin(); it != m_window.end();)
+    {
+        if(it->valid && r == *(it->req))
+        {
+            it->done = true;
+            it++;
+        }
+        else
+        {
+            it++;
+        }
+    }
+
+    if(check_read)
+        r.m_type = TRANSLATION_WRITE;
+
 }
 
 void ROB::printContents()
@@ -130,7 +155,6 @@ void ROB::mem_mark_translation_done(Request &r)
 
     if(check_read)
         r.m_type = TRANSLATION_WRITE;
-
 }
 
 bool ROB::is_empty()

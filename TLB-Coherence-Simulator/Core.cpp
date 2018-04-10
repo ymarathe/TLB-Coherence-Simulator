@@ -181,10 +181,10 @@ void Core::tick()
     m_tlb_hier->tick();
     m_cache_hier->tick();
     
+#ifdef BASELINE
     if(stall)
     {
         //Till translation coherence is serviced, stall issue
-#ifdef BASELINE
         if(num_stall_cycles_per_shootdown == tlb_shootdown_penalty)
         {
             //Invalidate from other cores
@@ -192,32 +192,39 @@ void Core::tick()
             {
                 m_other_cores[i]->tlb_invalidate(tlb_shootdown_addr, tlb_shootdown_tid, tlb_shootdown_is_large);
             }
-#else
-        if(m_rob->m_window[tr_coh_issue_ptr].done)
-        {
-            //If translation coherence request is serviced, issue CLFLUSH
-            bool is_translation = true;
-            m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
-
-            for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
-            {
-                //Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
-                Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
-                assert(!m_cache_hier->m_caches[i]->lookupCache(req));
-            }
-#endif
             stall = false;
             std::cout << "Unstalling core " << m_core_id << " at cycle = " << m_clk << "\n";
             std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
             std::cout << "Stall on core " << m_core_id << " = " << stall << "\n";
             std::cout << "Number of shootdowns on core = " << m_core_id << " = " << num_shootdown << "\n";
         }
-        else
+        else if(!m_rob->is_empty())
         {
             num_stall_cycles++;
             num_stall_cycles_per_shootdown++;
         }
     }
+#else
+    if(tr_wr_in_progress && m_rob->m_window[tr_coh_issue_ptr].done)
+    {
+        //If translation coherence request is serviced, issue CLFLUSH
+        bool is_translation = true;
+        std::cout << "Translation write done = " << m_rob->m_window[tr_coh_issue_ptr].done << ", flushing caches\n";
+        m_cache_hier->clflush(tlb_shootdown_addr, tlb_shootdown_tid, is_translation);
+        num_stall_cycles += 100;
+        std::cout << "Flushed caches\n";
+
+        for(int i = 0; i < m_cache_hier->m_caches.size(); i++)
+        {
+            //Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
+            Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
+            assert(!m_cache_hier->m_caches[i]->lookupCache(req));
+        }
+        tr_wr_in_progress = false;
+        std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
+        std::cout << "Number of shootdowns on core = " << m_core_id << " = " << num_shootdown << "\n";
+    }
+#endif
     
     if(!stall)
     {
@@ -279,15 +286,15 @@ void Core::tick()
                 tlb_shootdown_addr = req.m_addr;
                 tlb_shootdown_tid = req.m_tid;
                 tlb_shootdown_is_large = req.m_is_large;
-#ifdef IDEAL
+                #ifdef IDEAL
                 tlb_shootdown_penalty = 0;
-#else
-#ifdef SHOOTDOWN_PENALTY
+                #else
+                #ifdef SHOOTDOWN_PENALTY
                 tlb_shootdown_penalty = SHOOTDOWN_PENALTY;
-#else
+                #else
                 tlb_shootdown_penalty = 0;
-#endif
-#endif
+                #endif
+                #endif
                 num_stall_cycles_per_shootdown = 0;
                 num_shootdown++;
                 std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
@@ -302,10 +309,11 @@ void Core::tick()
                         m_rob->is_request_ready.erase(rr_iter);
                     }
                     m_rob->request_queue.pop_front();
-                    stall = true;
+                    tr_wr_in_progress = true;
                     tlb_shootdown_addr = req.m_addr;
                     tlb_shootdown_tid = req.m_tid;
                     tlb_shootdown_is_large = req.m_is_large;
+                    num_stall_cycles_per_shootdown = 0;
                     num_shootdown++;
                     std::cout << "Stalling core " << m_core_id << " at cycle = " << m_clk << " until translation coherence is complete\n";
                 }
@@ -353,6 +361,7 @@ void Core::tick()
             m_rob->mem_mark_translation_done(*req);
 
             m_rob->peek(tr_coh_issue_ptr);
+            std::cout << "Translation write done? " << m_rob->m_window[tr_coh_issue_ptr].done << "\n";
         }
         else
         {

@@ -259,7 +259,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         req.add_callback(m_callback);
         std::shared_ptr<Request> r = std::make_shared<Request>(req);
         
-        uint64_t deadline = m_core->m_clk + curr_latency;
+        uint64_t deadline = m_cache_sys->m_clk + curr_latency;
         
         //If element already exists in list, push deadline.
         while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
@@ -310,7 +310,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         req.add_callback(m_callback);
         std::shared_ptr<Request> r = std::make_shared<Request>(req);
 
-        uint64_t deadline = m_core->m_clk + curr_latency;
+        uint64_t deadline = m_cache_sys->m_clk + curr_latency;
 
         //If element already exists in list, push deadline.
         while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
@@ -523,7 +523,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     {
         req.add_callback(m_callback);
         std::shared_ptr<Request> r = std::make_shared<Request>(req);
-        uint64_t deadline = m_core->m_clk + curr_latency + m_cache_sys->m_memory_latency;
+        uint64_t deadline = m_cache_sys->m_clk + curr_latency + m_cache_sys->m_memory_latency;
         
         //If element already exists in the list, move deadline.
         while(m_cache_sys->m_wait_list.find(deadline) != m_cache_sys->m_wait_list.end())

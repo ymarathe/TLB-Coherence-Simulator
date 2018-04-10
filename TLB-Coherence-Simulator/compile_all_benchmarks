@@ -2,11 +2,17 @@ echo "Compiling httpd baseline"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DSHOOTDOWN_PENALTY=9185 -DBENCHMARK=1 -o httpd_baseline 
 echo "Compiling httpd baseline ideal"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DSHOOTDOWN_PENALTY=9185 -DBENCHMARK=1 -DIDEAL -o httpd_baseline_ideal 
+echo "Compiling httpd cotag"
+g++ -std=c++11 -O3 *.cpp -I .. -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DBENCHMARK=1 -o httpd_cotag
 echo "Compiling dedup baseline"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=81000000 -DWARMUP=100000 -DSHOOTDOWN_PENALTY=44038 -DBENCHMARK=2 -o dedup_baseline 
 echo "Compiling dedup baseline ideal"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=81000000 -DWARMUP=100000 -DSHOOTDOWN_PENALTY=44038 -DBENCHMARK=2 -DIDEAL -o dedup_baseline_ideal 
+echo "Compiling dedup cotag"
+g++ -std=c++11 -O3 *.cpp -I .. -DNUM_TRACES_PER_CORE=81000000 -DWARMUP=100000 -DBENCHMARK=2 -o dedup_cotag
 echo "Compiling word_count baseline"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DSHOOTDOWN_PENALTY=49663 -DBENCHMARK=3 -o word_count_baseline 
 echo "Compiling word_count baseline ideal"
 g++ -std=c++11 -O3 *.cpp -I .. -DBASELINE -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DSHOOTDOWN_PENALTY=49663 -DBENCHMARK=3 -DIDEAL -o word_count_baseline_ideal 
+echo "Compiling word_count cotag"
+g++ -std=c++11 -O3 *.cpp -I .. -DNUM_TRACES_PER_CORE=1000000000 -DWARMUP=100000000 -DBENCHMARK=3 -o word_count_cotag

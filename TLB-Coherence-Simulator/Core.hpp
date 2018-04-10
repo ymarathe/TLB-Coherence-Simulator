@@ -58,10 +58,6 @@ private:
     uint64_t m_l3_small_tlb_base = 0x0;
     uint64_t m_l3_small_tlb_size = 1024 * 1024;
     
-    //Stats
-    uint64_t m_num_issued  = 0;
-    uint64_t m_num_retired = 0;
-    
     unsigned int m_core_id;
     
     std::map<uint64_t, std::set<AddrMapKey, AddrMapComparator>> va2L3TLBAddr;
@@ -72,8 +68,11 @@ private:
 
 public:
     bool stall;
+    bool tr_wr_in_progress;
     std::shared_ptr<ROB> m_rob;
     std::deque<Request*> traceVec;
+    uint64_t m_num_issued  = 0;
+    uint64_t m_num_retired = 0;
     uint64_t m_clk;
     uint64_t num_stall_cycles = 0;
     uint64_t tlb_shootdown_penalty;
@@ -94,6 +93,7 @@ public:
             assert(tlb_hier->get_is_translation_hier());
             m_clk = 0;
             stall = false;
+            tr_wr_in_progress = false;
         }
     
     bool interfaceHier(bool ll_interface_complete);

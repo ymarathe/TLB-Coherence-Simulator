@@ -234,7 +234,7 @@ int main(int argc, char * argv[])
        }
 
 	   done = done & cores[i]->is_done() && (cores[i]->traceVec.size() == 0);
-	   if(cores[i]->m_clk >= NUM_TRACES_PER_CORE * 5)
+       if((cores[i]->m_clk + cores[i]->num_stall_cycles) > NUM_TRACES_PER_CORE * 5)
 	   {
 		   //std::cout << "Core " << i << " timed out " << std::endl;
 		   //std::cout << "Blocking request = " ; cores[i]->m_rob->peek_commit_ptr();
@@ -270,6 +270,7 @@ int main(int argc, char * argv[])
     uint64_t total_num_cycles = 0;
     uint64_t total_stall_cycles = 0;
     uint64_t total_shootdowns = 0;
+    uint64_t total_instructions = 0;
     double l1d_agg_mpki;
     double l2d_agg_mpki;
     double l1ts_agg_mpki;
@@ -285,22 +286,25 @@ int main(int argc, char * argv[])
         if(tp.is_multicore)
         {
             outFile << "Cycles = " << cores[i]->m_clk << "\n";
-            outFile << "Instructions = " << (tp.last_ts[i] - tp.warmup_period) << "\n";
+            outFile << "Instructions = " << (cores[i]->m_num_retired) << "\n";
             if(cores[i]->m_clk > 0)
             {
-                outFile << "IPC = " << (double) (tp.last_ts[i] - tp.warmup_period)/(cores[i]->m_clk) << "\n";
+                outFile << "IPC = " << (double) (cores[i]->m_num_retired)/(cores[i]->m_clk) << "\n";
             }
             outFile << "Stall cycles = " << cores[i]->num_stall_cycles << "\n";
             outFile << "Num shootdowns = " << cores[i]->num_shootdown << "\n";
+            total_instructions = cores[i]->m_num_retired;
         }
         else
         {
             outFile << "Cycles = " << cores[i]->m_clk << "\n";
+            outFile << "Instructions = " << (cores[i]->m_num_retired) << "\n";
             outFile << "Stall cycles = " << cores[i]->num_stall_cycles << "\n";
             outFile << "Num shootdowns = " << cores[i]->num_shootdown << "\n";
             total_num_cycles += cores[i]->m_clk;
             total_stall_cycles += cores[i]->num_stall_cycles;
             total_shootdowns += cores[i]->num_shootdown;
+            total_instructions += cores[i]->m_num_retired;
         }
 
         outFile << "[L1 D$] data hits = " << l1_data_caches[i]->num_data_hits << "\n";
@@ -311,9 +315,9 @@ int main(int argc, char * argv[])
         outFile << "[L1 D$] MSHR translation hits = " << l1_data_caches[i]->num_mshr_tr_hits << "\n";
         outFile << "[L1 D$] data accesses = " << l1_data_caches[i]->num_data_accesses << "\n";
         outFile << "[L1 D$] translation accesses = " << l1_data_caches[i]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l1d_mpki = (double) (l1_data_caches[i]->num_data_misses * 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l1d_mpki = (double) (l1_data_caches[i]->num_data_misses * 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L1 D$] MPKI = " << l1d_mpki << "\n";
             if(!tp.is_multicore) l1d_agg_mpki += l1d_mpki;
         }
@@ -326,9 +330,9 @@ int main(int argc, char * argv[])
         outFile << "[L2 D$] MSHR translation hits = " << l2_data_caches[i]->num_mshr_tr_hits << "\n";
         outFile << "[L2 D$] data accesses = " << l2_data_caches[i]->num_data_accesses << "\n";
         outFile << "[L2 D$] translation accesses = " << l2_data_caches[i]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l2d_mpki = (double) ((l2_data_caches[i]->num_data_misses  + l2_data_caches[i]->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l2d_mpki = (double) ((l2_data_caches[i]->num_data_misses  + l2_data_caches[i]->num_tr_misses)* 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L2 D$] MPKI = " << l2d_mpki << "\n";
             if(!tp.is_multicore) l2d_agg_mpki += l2d_mpki;
         }
@@ -341,9 +345,9 @@ int main(int argc, char * argv[])
         outFile << "[L1 SMALL TLB] MSHR translation hits = " << l1_tlb[2 * i]->num_mshr_tr_hits << "\n";
         outFile << "[L1 SMALL TLB] data accesses = " << l1_tlb[2 * i]->num_data_accesses << "\n";
         outFile << "[L1 SMALL TLB] translation accesses = " << l1_tlb[2 * i]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l1ts_mpki = (double) ((l1_tlb[2 * i]->num_data_misses  + l1_tlb[2 * i]->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l1ts_mpki = (double) ((l1_tlb[2 * i]->num_data_misses  + l1_tlb[2 * i]->num_tr_misses)* 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L1 SMALL TLB] MPKI = " << l1ts_mpki << "\n";
             if(!tp.is_multicore) l1ts_agg_mpki += l1ts_mpki;
         }
@@ -356,9 +360,9 @@ int main(int argc, char * argv[])
         outFile << "[L1 LARGE TLB] MSHR translation hits = " << l1_tlb[2 * i + 1]->num_mshr_tr_hits << "\n";
         outFile << "[L1 LARGE TLB] data accesses = " << l1_tlb[2 * i + 1]->num_data_accesses << "\n";
         outFile << "[L1 LARGE TLB] translation accesses = " << l1_tlb[2 * i + 1]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l1tl_mpki = (double) ((l1_tlb[2 * i + 1]->num_data_misses  + l1_tlb[2 * i + 1]->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l1tl_mpki = (double) ((l1_tlb[2 * i + 1]->num_data_misses  + l1_tlb[2 * i + 1]->num_tr_misses)* 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L1 LARGE TLB] MPKI = " << l1tl_mpki << "\n";
             if(!tp.is_multicore) l1tl_agg_mpki += l1tl_mpki;
         }
@@ -371,9 +375,9 @@ int main(int argc, char * argv[])
         outFile << "[L2 SMALL TLB] MSHR translation hits = " << l2_tlb[2 * i]->num_mshr_tr_hits << "\n";
         outFile << "[L2 SMALL TLB] data accesses = " << l2_tlb[2 * i]->num_data_accesses << "\n";
         outFile << "[L2 SMALL TLB] translation accesses = " << l2_tlb[2 * i]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l2ts_mpki = (double) ((l2_tlb[2 * i]->num_data_misses  + l2_tlb[2 * i]->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l2ts_mpki = (double) ((l2_tlb[2 * i]->num_data_misses  + l2_tlb[2 * i]->num_tr_misses)* 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L2 SMALL TLB] MPKI = " << l2ts_mpki << "\n";
             if(!tp.is_multicore) l2ts_agg_mpki += l2ts_mpki;
         }
@@ -386,9 +390,9 @@ int main(int argc, char * argv[])
         outFile << "[L2 LARGE TLB] MSHR translation hits = " << l2_tlb[2 * i + 1]->num_mshr_tr_hits << "\n";
         outFile << "[L2 LARGE TLB] data accesses = " << l2_tlb[2 * i + 1]->num_data_accesses << "\n";
         outFile << "[L2 LARGE TLB] translation accesses = " << l2_tlb[2 * i + 1]->num_tr_accesses << "\n";
-        if(tp.last_ts[i] > tp.warmup_period)
+        if(cores[i]->m_num_retired)
         {
-            double l2tl_mpki = (double) ((l2_tlb[2 * i + 1]->num_data_misses  + l2_tlb[2 * i + 1]->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[i]: tp.global_ts) - tp.warmup_period);
+            double l2tl_mpki = (double) ((l2_tlb[2 * i + 1]->num_data_misses  + l2_tlb[2 * i + 1]->num_tr_misses)* 1000.0)/(cores[i]->m_num_retired);
             outFile << "[L2 LARGE TLB] MPKI = " << l2tl_mpki << "\n";
             if(!tp.is_multicore) l2tl_agg_mpki += l2tl_mpki;
         }
@@ -399,10 +403,10 @@ int main(int argc, char * argv[])
     if(!tp.is_multicore)
     {
         outFile << "Cycles = " << total_num_cycles << "\n";
-        outFile << "Instructions = " << (tp.global_ts - tp.warmup_period) << "\n";
+        outFile << "Instructions = " << (total_instructions) << "\n";
         if(total_num_cycles > 0)
         {
-            outFile << "IPC = " << (double) (tp.global_ts - tp.warmup_period)/(total_num_cycles + total_stall_cycles) << "\n";
+            outFile << "IPC = " << (double) (total_instructions)/(total_num_cycles + total_stall_cycles) << "\n";
         }
         outFile << "Stall cycles = " << total_stall_cycles << "\n";
         outFile << "Num shootdowns = " << total_shootdowns << "\n";
@@ -424,9 +428,9 @@ int main(int argc, char * argv[])
     outFile << "[L3] MSHR translation hits = " << llc->num_mshr_tr_hits << "\n";
     outFile << "[L3] data accesses = " << llc->num_data_accesses << "\n";
     outFile << "[L3] translation accesses = " << llc->num_tr_accesses << "\n";
-    if(tp.last_ts[0] > tp.warmup_period)
+    if(total_instructions)
     {
-        outFile << "[L3] MPKI = " << (double) ((llc->num_data_misses  + llc->num_tr_misses)* 1000.0)/((tp.is_multicore ? tp.last_ts[0]: tp.global_ts) - tp.warmup_period) << "\n";
+        outFile << "[L3] MPKI = " << (double) ((llc->num_data_misses  + llc->num_tr_misses)* 1000.0)/(total_instructions) << "\n";
     }
 
     outFile << "[L3 SMALL TLB] data hits = " << l3_tlb_small->num_data_hits << "\n";
@@ -437,9 +441,9 @@ int main(int argc, char * argv[])
     outFile << "[L3 SMALL TLB] MSHR translation hits = " << l3_tlb_small->num_mshr_tr_hits << "\n";
     outFile << "[L3 SMALL TLB] data accesses = " << l3_tlb_small->num_data_accesses << "\n";
     outFile << "[L3 SMALL TLB] translation accesses = " << l3_tlb_small->num_tr_accesses << "\n";
-    if(tp.last_ts[0] > tp.warmup_period)
+    if(total_instructions)
     {
-        outFile << "[L3 SMALL TLB] MPKI = " << (double) (l3_tlb_small->num_tr_misses * 1000.0)/((tp.is_multicore ? tp.last_ts[0]: tp.global_ts) - tp.warmup_period) << "\n";
+        outFile << "[L3 SMALL TLB] MPKI = " << (double) (l3_tlb_small->num_tr_misses * 1000.0)/(total_instructions) << "\n";
     }
 
     outFile << "[L3 LARGE TLB] data hits = " << l3_tlb_large->num_data_hits << "\n";
@@ -450,9 +454,9 @@ int main(int argc, char * argv[])
     outFile << "[L3 LARGE TLB] MSHR translation hits = " << l3_tlb_large->num_mshr_tr_hits << "\n";
     outFile << "[L3 LARGE TLB] data accesses = " << l3_tlb_large->num_data_accesses << "\n";
     outFile << "[L3 LARGE TLB] translation accesses = " << l3_tlb_large->num_tr_accesses << "\n";
-    if(tp.last_ts[0] > tp.warmup_period)
+    if(total_instructions)
     {
-        outFile << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/((tp.is_multicore ? tp.last_ts[0]: tp.global_ts) - tp.warmup_period) << "\n";
+        outFile << "[L3 LARGE TLB] MPKI = " << (double) (l3_tlb_large->num_tr_misses * 1000.0)/(total_instructions) << "\n";
     }
 
     outFile << "----------------------------------------------------------------------\n";
