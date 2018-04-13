@@ -283,7 +283,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         req.m_is_large = coh_is_large;
         
         handle_coherence_action(coh_action, req, curr_latency, true);
-        
+
         num_tr_hits += (is_translation);
         num_data_hits += (!is_translation);
 
@@ -300,10 +300,10 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     {
         assert(m_cache_level != 1);
 
-        MSHREntry *mshr_entry = new MSHREntry();
-        mshr_entry->m_dirty = true;
-        mshr_entry->m_coh_state = propagate_coh_state;
-        m_wb_entries.insert(std::make_pair(req, mshr_entry));
+        QueueEntry *queue_entry = new QueueEntry();
+        queue_entry->m_dirty = true;
+        queue_entry->m_coh_state = propagate_coh_state;
+        m_wb_entries.insert(std::make_pair(req, queue_entry));
 
         //Insert in lower cache
         std::shared_ptr<Cache> lower_cache = find_lower_cache_in_core(addr, is_translation, is_large);
@@ -328,45 +328,34 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
 
     bool mshr_hit = false;
 
-    auto mshr_iter = m_mshr_entries.find(req);
-    Request f_req = req;
-    f_req.m_type = (req.m_type == TRANSLATION_READ)? TRANSLATION_WRITE : (req.m_type == TRANSLATION_WRITE) ? TRANSLATION_READ : \
-                         (req.m_type == DATA_READ) ? DATA_WRITE : (req.m_type == DATA_WRITE) ? DATA_READ: INVALID_TXN_KIND;
-    auto mshr_iter_fp = m_mshr_entries.find(f_req);
-
     unsigned int mshr_size = m_cache_sys->is_last_level(m_cache_level) ? 32 * NUM_CORES :
                                 m_cache_sys->is_penultimate_level(m_cache_level) && !m_cache_sys->get_is_translation_hier() ? 32 : 16;
 
-    if(mshr_iter != m_mshr_entries.end() || mshr_iter_fp != m_mshr_entries.end())
+    auto mshr_iter = m_mshr_addr.find(req.m_addr);
+
+    if(mshr_iter != m_mshr_addr.end())
     {
-        if(mshr_iter != m_mshr_entries.end())
-            assert(mshr_iter_fp == m_mshr_entries.end());
-
-        if(mshr_iter_fp != m_mshr_entries.end())
-            assert(mshr_iter == m_mshr_entries.end());
-
-        //What hit in the MSHR?
-        auto iter = (mshr_iter != m_mshr_entries.end()) ? mshr_iter : mshr_iter_fp;
-
-        //Which request is present in the MSHR?
-        Request &req_in_mshr = (mshr_iter != m_mshr_entries.end()) ? req : f_req;
-        assert(m_mshr_entries.find(req_in_mshr) != m_mshr_entries.end());
-
-        //Did we find exact request?
-        bool hit_full_req = (mshr_iter != m_mshr_entries.end());
+        bool found_req = (m_mshr_entries.find(req) != m_mshr_entries.end());
 
         if(req.m_type == TRANSLATION_WRITE || req.m_type == DATA_WRITE)
         {
-            iter->second->m_dirty = true;
+            for(auto it = mshr_iter->second.begin(); it != mshr_iter->second.end(); it++)
+            {
+                QueueEntry *q = *it;
+                q->m_dirty = true;
+            }
         }
 
         //If MSHR hit due to request from another core, mark MSHR entry as core-agnostic.
-        if(iter->first.m_core_id != req.m_core_id)
+        //OR safely mark all MSHR hits as core agnostic
+        for(auto it = mshr_iter->second.begin(); it != mshr_iter->second.end(); it++)
         {
-            iter->second->m_is_core_agnostic = true;
+            QueueEntry *q = *it;
+            q->m_is_core_agnostic = true;
         }
 
         //If Cachesys is not last cachesys, point to last cachesys
+        //TODO: FIXME: Ugly hack, fix this
         CacheSys* cs_ptr = (m_cache_sys->get_core_id() != (NUM_CORES - 1)) ? m_cache_sys->m_other_cache_sys[NUM_CORES - 2].get() : m_cache_sys;
         assert(cs_ptr->get_core_id() == (NUM_CORES - 1));
 
@@ -375,9 +364,8 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         for(auto it = cs_ptr->m_wait_list.begin(); it != cs_ptr->m_wait_list.end() ; it++)
         {
             //If we did not find exact request in MSHR, add the current request to wait list
-            if(*(it->second) == req_in_mshr && !hit_full_req)
+            if(it->second->m_addr == req.m_addr && !found_req)
             {
-
                 req.add_callback(m_callback);
                 std::shared_ptr<Request> r = std::make_shared<Request>(req);
 
@@ -397,7 +385,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         for(auto it = cs_ptr->m_hit_list.begin(); it != cs_ptr->m_hit_list.end() && !added_to_list; it++)
         {
             //If we did not find exact request in MSHR, add the current request to wait list
-            if(*(it->second) == req_in_mshr && !hit_full_req)
+            if(it->second->m_addr == req.m_addr && !found_req && it->second->m_is_core_agnostic)
             {
                 req.add_callback(m_callback);
                 std::shared_ptr<Request> r = std::make_shared<Request>(req);
@@ -418,7 +406,7 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
         for(auto it = m_cache_sys->m_hit_list.begin(); it != m_cache_sys->m_hit_list.end() && !added_to_list; it++)
         {
             //If we did not find exact request in MSHR, add the current request to wait list
-            if(*(it->second) == req_in_mshr && !hit_full_req)
+            if(it->second->m_addr == req.m_addr && !found_req)
             {
                 req.add_callback(m_callback);
                 std::shared_ptr<Request> r = std::make_shared<Request>(req);
@@ -434,6 +422,23 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
                 added_to_list = true;
                 break;
             }
+        }
+
+        //TODO:FIXME: Ugly hack to fix TID mismatch while retiring from MSHR
+        if(!added_to_list && !found_req)
+        {
+            std::cout << "[MSHR_HIT_NOT_ADDED_TO_LIST] At clk = " << m_core->m_clk << ", in hier = " << m_cache_sys->get_is_translation_hier() << ", in level = " << m_cache_level << ":" << std::hex << req << std::dec;
+            req.add_callback(m_callback);
+            std::shared_ptr<Request> r = std::make_shared<Request>(req);
+
+            uint64_t deadline = m_cache_sys->m_clk + 1;
+
+            while(m_cache_sys->m_hit_list.find(deadline) != m_cache_sys->m_hit_list.end())
+            {
+                deadline++;
+            }
+
+            m_cache_sys->m_hit_list.insert(std::make_pair(deadline, r));
         }
 
         num_mshr_tr_hits += (is_translation);
@@ -456,18 +461,30 @@ RequestStatus Cache::lookupAndFillCache(Request &req, unsigned int curr_latency,
     }
     else if(m_mshr_entries.size() < mshr_size)
     {
-        MSHREntry *mshr_entry = new MSHREntry();
+        QueueEntry *queue_entry = new QueueEntry();
 
         if(req.m_type == TRANSLATION_WRITE || req.m_type == DATA_WRITE)
         {
-            mshr_entry->m_dirty = true;
+            queue_entry->m_dirty = true;
         }
 
-        m_mshr_entries.insert(std::make_pair(req, mshr_entry));
+        m_mshr_entries.insert(std::make_pair(req, queue_entry));
+        if(m_mshr_addr.find(req.m_addr) != m_mshr_addr.end())
+        {
+            m_mshr_addr[req.m_addr].push_back(queue_entry);
+        }
+        else
+        {
+            m_mshr_addr[req.m_addr] = std::list<QueueEntry*>();
+            m_mshr_addr[req.m_addr].push_back(queue_entry);
+        }
 
 	    auto it = m_mshr_entries.find(req);
 	    //Ensure insertion in the MSHR
 	    assert(it != m_mshr_entries.end());
+
+        //Ensure insertion in the MSHR address list
+        assert(m_mshr_addr.find(req.m_addr) != m_mshr_addr.end());
 
         num_tr_misses += (is_translation);
         num_data_misses += (!is_translation);
@@ -621,6 +638,7 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         std::vector<CacheLine>& set = m_tagStore[index];
         unsigned int insert_pos = m_repl->getVictim(set, index);
         CacheLine &line = set[insert_pos];
+        QueueEntry *q = it->second;
 
         evict(index, line);
 
@@ -632,21 +650,30 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         line.is_translation = (txn_kind == TRANSLATION_READ) || (txn_kind == TRANSLATION_WRITE) || (txn_kind == TRANSLATION_WRITEBACK);
         line.is_large = is_large;
         line.tid = tid;
-        line.dirty = it->second->m_dirty || (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || (txn_kind == DATA_WRITEBACK);
+        line.dirty = q->m_dirty || (((txn_kind == TRANSLATION_WRITE) || (txn_kind == DATA_WRITE)) && (m_cache_level == 1)) || (txn_kind == DATA_WRITEBACK);
         //If cache type is TRANSLATION_ONLY, include co-tag
         line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, txn_kind, tid, is_large, false) : -1;
 
-        //If we are in the last level cache and mshr_entry has been made core agnostic, make the upstream request core agnostic.
-        if(it->second->m_is_core_agnostic && m_core_id == -1)
+        //If we are in the last level cache and queue_entry has been made core agnostic, make the upstream request core agnostic.
+        if(q->m_is_core_agnostic && m_core_id == -1)
             r->m_is_core_agnostic = true;
 
-        CoherenceState propagate_coh_state = it->second->m_coh_state;
+        CoherenceState propagate_coh_state = q->m_coh_state;
 
         CoherenceAction coh_action = line.m_coherence_prot->setNextCoherenceState(txn_kind, propagate_coh_state);
 
         handle_coherence_action(coh_action, *r, 0, true);
-        
-        delete(it->second);
+
+        assert(m_mshr_addr.find(r->m_addr) != m_mshr_addr.end());
+
+        m_mshr_addr[r->m_addr].remove(q);
+
+        if(m_mshr_addr[r->m_addr].size() == 0)
+        {
+            m_mshr_addr.erase(r->m_addr);
+        }
+
+        delete(q);
         
         m_mshr_entries.erase(it);
         
@@ -702,7 +729,7 @@ void Cache::release_lock(std::shared_ptr<Request> r)
         //If cache type is TRANSLATION_ONLY, include co-tag
         line.cotag = (m_cache_type == TRANSLATION_ONLY) ? m_core->getL3TLBAddr(addr, txn_kind, tid, is_large, false) : -1;
 
-        //If we are in the last level cache and mshr_entry has been made core agnostic, make the upstream request core agnostic.
+        //If we are in the last level cache and queue_entry has been made core agnostic, make the upstream request core agnostic.
         if(it->second->m_is_core_agnostic && m_core_id == -1)
             r->m_is_core_agnostic = true;
 

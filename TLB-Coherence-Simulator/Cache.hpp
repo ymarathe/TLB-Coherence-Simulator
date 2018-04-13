@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <vector>
+#include <list>
 #include <map>
 #include <unordered_map>
 #include <memory>
@@ -28,13 +29,13 @@ class Cache
 {
 private:
     
-    class MSHREntry {
+    class QueueEntry {
     public:
         bool m_is_core_agnostic;
         bool m_dirty;
         CoherenceState m_coh_state;
 
-        MSHREntry(bool is_core_agnostic = false, bool dirty = false, CoherenceState coh_state = INVALID) : m_is_core_agnostic(is_core_agnostic), m_dirty(dirty), m_coh_state(coh_state) {}
+        QueueEntry(bool is_core_agnostic = false, bool dirty = false, CoherenceState coh_state = INVALID) : m_is_core_agnostic(is_core_agnostic), m_dirty(dirty), m_coh_state(coh_state) {}
     };
 
     unsigned int m_num_sets;
@@ -54,9 +55,11 @@ private:
     
     std::shared_ptr<Core> m_core;
     
-    std::unordered_map<Request, MSHREntry*, RequestHasher> m_mshr_entries;
+    std::unordered_map<Request, QueueEntry*, RequestHasher> m_mshr_entries;
 
-    std::unordered_map<Request, MSHREntry*, RequestHasher> m_wb_entries;
+    std::unordered_map<uint64_t, std::list<QueueEntry*>> m_mshr_addr;
+
+    std::unordered_map<Request, QueueEntry*, RequestHasher> m_wb_entries;
     
     unsigned int m_cache_level;
     unsigned int m_latency_cycles;
