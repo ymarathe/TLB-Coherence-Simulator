@@ -64,7 +64,6 @@ private:
     char shootdown[1024];
     FILE *trace_fp[NUM_CORES];
     FILE *shootdown_fp;
-    bool *used_up, *empty_file;
     bool used_up_shootdown, empty_file_shootdown;
     uint64_t *entry_count;
     unsigned int num_cores;
@@ -73,6 +72,7 @@ private:
     
 public:
     //Variables
+    bool *used_up, *empty_file;
     uint64_t *last_ts;
     uint64_t global_ts;
 #ifdef WARMUP

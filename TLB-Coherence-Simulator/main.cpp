@@ -70,8 +70,13 @@ int main(int argc, char * argv[])
     outFile.open(benchmark + "_baseline.out");
 #endif
 #else
+#ifdef COTAG
     std::cout << ("Opening " + benchmark + "_cotag.out") << std::endl;
     outFile.open(benchmark + "_cotag.out");
+#else
+    std::cout << ("Opening " + benchmark + "_cotagless.out") << std::endl;
+    outFile.open(benchmark + "_cotagless.out");
+#endif
 #endif
     
     std::shared_ptr<Cache> llc = std::make_shared<Cache>(Cache(8192, 16, 64, 38,  DATA_AND_TRANSLATION));
@@ -211,7 +216,8 @@ int main(int argc, char * argv[])
    	{
 	   cores[i]->tick();
        
-       if((num_traces_added < num_total_traces) && (cores[i]->must_add_trace()))
+       //if((num_traces_added < num_total_traces) && (cores[i]->must_add_trace()))
+       if(num_traces_added < num_total_traces)
        {
            Request *r = tp.generateRequest();
 
@@ -219,7 +225,15 @@ int main(int argc, char * argv[])
 
            if((r != nullptr) && r->m_core_id >= 0 && r->m_core_id < NUM_CORES)
            {
-               cores[r->m_core_id]->add_trace(r);
+               if(cores[r->m_core_id]->must_add_trace())
+               {
+                    num_traces_added +=  int(r->m_is_memory_acc);
+                    cores[r->m_core_id]->add_trace(r);
+               }
+               else
+               {
+                    tp.used_up[0] = false;
+               }
            }
            
            if(num_traces_added % 1000000 == 0)
@@ -227,10 +241,10 @@ int main(int argc, char * argv[])
                std::cout << "[NUM_TRACES_ADDED] Count = " << num_traces_added << "\n";
            }
 
-           if(r != nullptr)
-           {
-               num_traces_added +=  int(r->m_is_memory_acc);
-           }
+           //if(r != nullptr)
+           //{
+           //    num_traces_added +=  int(r->m_is_memory_acc);
+           //}
        }
 
 	   done = done & cores[i]->is_done() && (cores[i]->traceVec.size() == 0);

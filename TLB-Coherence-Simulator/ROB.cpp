@@ -62,7 +62,8 @@ unsigned int ROB::retire(uint64_t clk)
         return 0;
     }
     
-    while(m_window[m_commit_ptr].valid && ((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
+    //while(m_window[m_commit_ptr].valid && ((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
+    while(m_window[m_commit_ptr].valid && ((m_window[m_commit_ptr].done) || ((m_window[m_commit_ptr].clk + 394) < clk) || ((m_window[m_commit_ptr].clk < clk) && (!m_window[m_commit_ptr].is_memory_access))) && (num_retired < m_retire_width))
     {
         //Advance commit ptr
         m_window[m_commit_ptr].valid = false;

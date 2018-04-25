@@ -218,7 +218,7 @@ void Core::tick()
         {
             //Request *r = m_rob->m_window[tr_coh_issue_ptr].req;
             Request req(tlb_shootdown_addr, TRANSLATION_READ, tlb_shootdown_tid, tlb_shootdown_is_large, m_core_id);
-            assert(!m_cache_hier->m_caches[i]->lookupCache(req));
+            //assert(!m_cache_hier->m_caches[i]->lookupCache(req));
         }
         tr_wr_in_progress = false;
         std::cout << "Number of stall cycles = " << num_stall_cycles << " on core " << m_core_id << "\n";
