@@ -271,6 +271,8 @@ int main(int argc, char * argv[])
     uint64_t total_stall_cycles = 0;
     uint64_t total_shootdowns = 0;
     uint64_t total_instructions = 0;
+    uint64_t total_num_data_coh_msgs = 0;
+    uint64_t total_num_tr_coh_msgs = 0;
     double l1d_agg_mpki;
     double l2d_agg_mpki;
     double l1ts_agg_mpki;
@@ -352,6 +354,9 @@ int main(int argc, char * argv[])
             if(!tp.is_multicore) l1ts_agg_mpki += l1ts_mpki;
         }
 
+        total_num_data_coh_msgs += l1_tlb[2 * i]->num_data_coh_msgs;
+        total_num_tr_coh_msgs += l1_tlb[2 * i]->num_tr_coh_msgs;
+
         outFile << "[L1 LARGE TLB] data hits = " << l1_tlb[2 * i + 1]->num_data_hits << "\n";
         outFile << "[L1 LARGE TLB] translation hits = " << l1_tlb[2 * i + 1]->num_tr_hits << "\n";
         outFile << "[L1 LARGE TLB] data misses = " << l1_tlb[2 * i + 1]->num_data_misses << "\n";
@@ -419,7 +424,8 @@ int main(int argc, char * argv[])
     }
 
     outFile << "----------------------------------------------------------------------\n";
-
+    outFile << "[AGGREGATE] Number of data coherence messages = " << total_num_data_coh_msgs << "\n";
+    outFile << "[AGGREGATE] Number of translation coherence messages = " << total_num_tr_coh_msgs << "\n";
     outFile << "[L3] data hits = " << llc->num_data_hits << "\n";
     outFile << "[L3] translation hits = " << llc->num_tr_hits << "\n";
     outFile << "[L3] data misses = " << llc->num_data_misses << "\n";

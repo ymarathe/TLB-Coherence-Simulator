@@ -89,6 +89,8 @@ public:
     uint64_t num_mshr_tr_hits = 0;
     uint64_t num_data_accesses = 0;
     uint64_t num_tr_accesses = 0;
+    uint64_t num_data_coh_msgs = 0;
+    uint64_t num_tr_coh_msgs = 0;
 
     Cache(int num_sets, int associativity, int line_size, unsigned int latency_cycles, CacheType cache_type = DATA_ONLY, bool is_large_page_tlb = false, enum ReplPolicyEnum pol = LRU_POLICY, enum CoherenceProtocolEnum prot = MOESI_COHERENCE, bool inclusive = false):
     m_num_sets(num_sets), m_associativity(associativity), m_line_size(line_size), m_latency_cycles(latency_cycles)

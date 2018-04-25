@@ -55,8 +55,6 @@ private:
     
     std::shared_ptr<CacheSys> m_cache_hier;
     std::shared_ptr<CacheSys> m_tlb_hier;
-    uint64_t m_l3_small_tlb_base = 0x0;
-    uint64_t m_l3_small_tlb_size = 1024 * 1024;
     
     unsigned int m_core_id;
     
@@ -67,6 +65,8 @@ private:
     std::vector<std::shared_ptr<Core>> m_other_cores;
 
 public:
+    uint64_t m_l3_small_tlb_base = 0x0;
+    uint64_t m_l3_small_tlb_size = 16 * 1024 * 1024;
     bool stall;
     bool tr_wr_in_progress;
     std::shared_ptr<ROB> m_rob;

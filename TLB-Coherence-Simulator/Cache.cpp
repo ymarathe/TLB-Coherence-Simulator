@@ -832,6 +832,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
             }
         }
         //Translation coherence is enforced by co-tags
+#ifdef COTAG
         else if(!same_cache_sys && (m_cache_type == TRANSLATION_ONLY))
         {
             assert(m_cache_sys->get_is_translation_hier());
@@ -857,7 +858,54 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                 }
                 needs_state_correction = (coh_action == BROADCAST_TRANSLATION_READ);
             }
+            num_data_coh_msgs += (!is_translation);
+            num_tr_coh_msgs += (is_translation);
         }
+#else
+        else if(!same_cache_sys && (m_cache_type == TRANSLATION_ONLY))
+        {
+            assert(m_cache_sys->get_is_translation_hier());
+            unsigned int index, hit_pos;
+
+            if(is_translation)
+            {
+                unsigned int pom_tlb_set_index = (is_large) ? (addr - m_core->m_l3_small_tlb_base - m_core->m_l3_small_tlb_size)/(16 * 4) : (addr - m_core->m_l3_small_tlb_base)/(16 * 4);
+                assert(pom_tlb_set_index >= 0);
+                unsigned int check_index, hit_pos;
+                unsigned int index = (pom_tlb_set_index) % (m_num_sets);
+
+                if(is_found_by_cotag(addr, tid, check_index, hit_pos))
+                {
+                    assert(index == check_index);
+                }
+
+                for(int j = 0; j < m_associativity; j++)
+                {
+                    CacheLine &line = m_tagStore[index][j];
+                    kind coh_txn_kind = txnKindForCohAction(coh_action);
+                    line.m_coherence_prot->setNextCoherenceState(coh_txn_kind);
+                    if(coh_txn_kind == DIRECTORY_TRANSLATION_WRITE)
+                    {
+                        //std::cout << "[SHOOTDOWN] Invalidate line via co-tag on core " << m_core_id << ", level = " << m_cache_level << " : " <<  std::hex << r << std::dec;
+
+                        line.valid = false;
+                        assert(line.m_coherence_prot->getCoherenceState() == INVALID);
+
+                        if(m_cache_sys->get_is_translation_hier() && m_cache_sys->is_penultimate_level(m_cache_level))
+                        {
+                            //std::cout << "[COHERENCE_INVALIDATION] Removing from presence map: " << std::hex << "Addr = " << addr << std::dec << ", tid = " << tid << ", is_large = " << is_large << ", on core = " << m_core_id << "\n";
+                            m_tp_ptr->remove_from_presence_map(addr, tid, is_large, m_core_id);
+                        }
+                    }
+                    needs_state_correction = (coh_action == BROADCAST_TRANSLATION_READ);
+                }
+            }
+
+            num_data_coh_msgs += (!is_translation);
+            num_tr_coh_msgs += (is_translation);
+
+        }
+#endif
     }
     else if(coh_action == STATE_CORRECTION)
     {
@@ -888,6 +936,7 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                     line.m_coherence_prot->forceCoherenceState(SHARED);
                 }
             }
+#ifdef COTAG
             else
             {
                 unsigned int index, hit_pos;
@@ -897,6 +946,23 @@ bool Cache::handle_coherence_action(CoherenceAction coh_action, Request &r, unsi
                     line.m_coherence_prot->forceCoherenceState(SHARED);
                 }
             }
+#else
+            else
+            {
+                if(is_translation)
+                {
+                    unsigned int pom_tlb_set_index = (is_large) ? (addr - m_core->m_l3_small_tlb_base - m_core->m_l3_small_tlb_size)/(16 * 4) : (addr - m_core->m_l3_small_tlb_base)/(16 * 4);
+                    assert(pom_tlb_set_index >= 0);
+                    unsigned int check_index, hit_pos;
+                    unsigned int index = (pom_tlb_set_index) % (m_num_sets);
+                    for(int j = 0; j < m_associativity; j++)
+                    {
+                        CacheLine &line = m_tagStore[index][j];
+                        line.m_coherence_prot->forceCoherenceState(SHARED);
+                    }
+                }
+            }
+#endif
         }
     }
     
